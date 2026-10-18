@@ -1,2 +1,9 @@
-# gnn-vulnerability-detection
-Graph Neural Network-Based Source Code Vulnerability Detection with Localization
+# GNN-Based Source Code Vulnerability Detection
+
+## Problem
+## Dataset
+## Approach
+## Results
+TBD
+## How to reproduce
+## Limitations
