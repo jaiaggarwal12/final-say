@@ -1,0 +1,40 @@
+310 projects:
+3proxy, abrt, accountsservice, acpica, aircrack-ng, altlinux, Android, atheme, axtls-8266, bdwgc, beanstalkd, bitlbee, boa, bubblewrap, busybox, bzrtp, capstone, cgminer, charybdis, Chrome, civetweb, cJSON, collectd, corosync, cups, curl, cyrus-imapd, das_watchdog, dbus, didiwiki, domoticz, dosfstools, drm, enlightment, Espruino, ettercap, evince, exempi, exfat, exim, ext-http, faad2, feh, FFmpeg, file, firejail, flatpak, fontconfig, fontforge, FreeRDP, frr, ghostscript, gifsicle, gimp, git, gnome-session, gnulib, gnupg, gpac, gpmf-parser, gst-plugins-ugly, gstreamer, h2o, haproxy, harfbuzz, heimdal, hexchat, htcondor, httpd, hylafax, illumos-gate, ImageMagick, ImageMagick6, imageworsener, infradead, ioq3, iperf, ippusbxd, irssi, irssi-proxy, jabberd2, jansson, jasper, jerryscript, jq, json-c, kamailio, kde, keepalived, knc, krb5, kvm-guest-drivers-windows, launchpad, leptonica, lhasa, libarchive, libass, libav, libbsd, libcomps, libdwarf, libetpan, libevent, libevt, libexpat, libfep, libgcrypt, libgd, libgit2, libgsf, libICE, libimobiledevice, libinfinity, libjpeg-turbo, liblouis, libming, libmodbus, libmspack, libmysofa, libndp, libpcap, libplist, libpng, LibRaw-demosaic-pack-GPL2, libreport, libreswan, librsvg, libsndfile, libssh, libtiff, libtomcrypt, libu2f-host, libuv, libvips, libvirt, libx11, libx12, libXdmcp, libXfixes, libxfont, libXi, libxkbcommon, libxml2, libXpm, libXrandr, libXrender, libxsmm, libXtst, libXv, libXvMC, libzip, lighttpd1.4, linux, linux-nfs, Little-CMS, lxc, lxcfs, lxde, lynx-snapshots, lysator, MAC-Telnet, mapserver, matio, mbedtls, media-tree, memcached, mindrot, minisphere, miniupnp, mod_auth_mellon, mod_auth_openidc, mongo-c-driver, mongoose, mongoose-os, monkey, moodle, mosquitto, mruby, mstdlib, mujs, musl, nagioscore, nautilus, nbd, nedmalloc, nefarious2, neomutt, netdata, netfilter, NetworkManager, nfdump, ngiflib, nmap, nspluginwrapper, ntp, Onigmo, oniguruma, opa-ff, openafs, openbsd, OpenJK, openjpeg, openmpt, OpenSC, openssh-portable, openssl, Openswan, openvpn, optee_os, ovs, pacemaker, pam-u2f, pam_p11, pango, PDFGen, pdfresurrect, pengutronix, pgbouncer, php, php-radius, php-src, picocom, pigz, pixman, pngquant, polarssl, polkit, poppler, postgres, postgresql, ppp, profanity, proftpd, proxychains-ng, pupnp-code, pure-ftpd, pyfribidi, qemu, quagga, quassel, radare2, radvd, raptor, rawstudio, rdesktop, redis, rpm, rsyslog, rufus, samba, savannah, sgminer, shadowsocks-libev, shibboleth, sleuthkit, slurm, spice, squashfs-tools, src, ssdp-responder, stb, sthttpd, strongswan, suhosin, suricata, systemd, t1utils, tartarus, tcmu-runner, tcpdump, tcpreplay, texlive-source, thor, tinc, tnef, tor, torque, tpm2.0-tools, u-boot, udisks, uncurl, unixODBC, unrealircd, uriparser, util-linux, uwsgi, uzbl, Varnish-Cache, varnish-cache, VeraCrypt, viabtc_exchange_server, virglrenderer, w3m, WavPack, wayland, webserver, weechat, wildmidi, wireshark, wolfssl, wpitchoune, xcursor, xrdb, xserver, yara, yodl, yubico-pam, zfs, zlib, zstd
+
+lang counts:
+lang
+C      185997
+CPP      2636
+C++         3
+Name: count, dtype: int64
+
+file_name samples: [nan, nan, nan, nan, nan]
+distinct (project, file_name) groups: 4473
+
+normalized-duplicate groups (size > 1): 3154
+rows inside those groups: 6431
+groups with conflicting labels (both 0 and 1): 1330
+groups spanning more than one project: 265
+
+length cap -> fraction kept | positives kept
+ 2000 chars -> 90.8% | 7766 / 10900
+ 4000 chars -> 96.7% | 9327 / 10900
+ 8000 chars -> 99.0% | 10211 / 10900
+
+vulnerable rows: 10900
+with func_after present: 10900
+func_after identical to func_before: 20
+
+top 10 CWE IDs among vulnerable rows:
+CWE ID
+CWE-119    2127
+CWE-20     1142
+CWE-399     736
+CWE-125     625
+CWE-264     508
+CWE-200     503
+CWE-189     337
+CWE-416     330
+CWE-190     307
+CWE-362     278
+Name: count, dtype: int64
