@@ -1,0 +1,35 @@
+loaded: 188,636 rows, 10,900 vulnerable, 310 raw projects -> 295 after merging aliases
+drop: vulnerable rows with a no-op fix: 334
+drop: rows in label-conflict groups: 2,602 (1,274 labeled vulnerable)
+drop: redundant normalized duplicates: 1,884
+drop: functions over 8000 chars: 1,716 (616 vulnerable)
+
+after cleaning: 182,100 rows, 8,609 vulnerable
+largest function-name groups:
+group
+php::PHP_FUNCTION         905
+php::PHP_METHOD           191
+php::SPL_METHOD           142
+libgd::BGD_DECLARE        119
+imageworsener::IW_IMPL    114
+linux::SYSCALL_DEFINE2     95
+linux::SYSCALL_DEFINE3     95
+httpd::AP_DECLARE          82
+
+== split_within ==
+                rows  vulnerable  projects prevalence
+split_within                                         
+test           18211         861       259      4.73%
+train         145679        6887       294      4.73%
+val            18210         861       261      4.73%
+
+== split_cross ==
+               rows  vulnerable  projects prevalence
+split_cross                                         
+test          23926        1061       109      4.43%
+train        148784        7017       120      4.72%
+val            9390         531        66      5.65%
+
+cross-project val projects: 3proxy, FFmpeg, altlinux, bzrtp, cJSON, corosync, cups, cyrus-imapd, das_watchdog, dbus, ettercap, gnome-session, gnulib, illumos-gate, jq, libXfixes, libXi, libass, libbsd, libcomps, libmspack, libmysofa, libndp, libpcap, libplist, libpng, libreswan, libsndfile, libx11, libx12, libxsmm, libzip, lighttpd1.4, lxde, mod_auth_mellon, mongoose, moodle, mosquitto, nautilus, neomutt, netdata, openafs, openmpt, openssh-portable, openssl, pacemaker, pango, picocom, proftpd, quagga, shadowsocks-libev, spice, sthttpd, suhosin, suricata, tcmu-runner, texlive-source, tor, uriparser, uzbl, w3m, wayland, weechat, wildmidi, wireshark, zlib
+
+cross-project test projects: Espruino, ImageMagick, LibRaw-demosaic-pack-GPL2, Little-CMS, MAC-Telnet, OpenJK, OpenSC, axtls-8266, bdwgc, busybox, capstone, charybdis, civetweb, collectd, curl, domoticz, evince, exfat, ext-http, faad2, flatpak, gifsicle, gimp, gnupg, gpac, haproxy, heimdal, hexchat, hylafax, imageworsener, irssi, jansson, jasper, jerryscript, kamailio, lhasa, libXpm, libXtst, libXv, libXvMC, libarchive, libevt, libfep, libimobiledevice, libinfinity, libjpeg-turbo, liblouis, libming, libreport, librsvg, libtomcrypt, libu2f-host, libxkbcommon, lxc, lxcfs, matio, mbedtls, minisphere, mruby, mujs, nmap, nspluginwrapper, ntp, oniguruma, openbsd, openjpeg, openvpn, optee_os, ovs, pam_p11, pdfresurrect, pgbouncer, php, php-radius, pngquant, polkit, poppler, ppp, pyfribidi, radare2, raptor, rawstudio, rdesktop, rpm, rsyslog, samba, shibboleth, sleuthkit, stb, strongswan, tartarus, tcpdump, tcpreplay, thor, tinc, torque, tpm2.0-tools, u-boot, udisks, util-linux, viabtc_exchange_server, virglrenderer, wolfssl, xrdb, xserver, yodl, yubico-pam, zfs, zstd
