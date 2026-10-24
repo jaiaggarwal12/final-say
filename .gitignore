@@ -11,3 +11,6 @@ results/checkpoints/
 joern-cli/
 workspace/
 /tools/
+
+__pycache__/
+*.pyc
