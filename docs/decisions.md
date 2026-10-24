@@ -8,3 +8,9 @@
 - Normalized-exact duplicates: dropped all groups with conflicting labels; kept one copy of consistent groups (global, so no exact copy crosses splits).
 - Dropped vulnerable rows whose fix changes only comments/whitespace; dropped functions over 8,000 chars (loses ~6% of positives).
 - Cross-project split: Chrome, linux, Android and hosting-site pseudo-projects are train-only; val/test projects drawn by seeded shuffle (seed 42), not hand-picked.
+- Data source: BigVul (Fan et al., MSR 2020), original zip as mirrored at huggingface.co/datasets/starsofchance/MSR_data_cleaned; SHA-256 verified.
+- Dataset is 98.6% C (185,997 of 188,636 functions); claims are about C, not C/C++.
+- file_name is mostly missing, so within-project grouping uses (project, function name).
+- Normalized-exact duplicates: dropped groups with conflicting labels; kept one copy of consistent groups (global, so no exact copy crosses splits).
+- Dropped vulnerable rows whose fix changes only comments/whitespace; dropped functions over 8,000 chars.
+- Cross-project split: Chrome, linux, Android and hosting-site pseudo-projects are train-only; val/test projects drawn by seeded shuffle (seed 42), not hand-picked.

@@ -2,7 +2,7 @@
 # project-specific
 .DS_Store
 .venv/
-data/
+/data/
 results/checkpoints/
 *.pt
 *.pth
