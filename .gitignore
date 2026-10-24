@@ -10,3 +10,4 @@ results/checkpoints/
 .ipynb_checkpoints/
 joern-cli/
 workspace/
+/tools/
