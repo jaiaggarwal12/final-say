@@ -1,0 +1,19 @@
+tokenizing...
+
+=== within: train 145,679 | val 18,210 | test 18,211
+  tfidf_logreg C=0.1: val AP = 0.2248
+  tfidf_logreg C=1.0: val AP = 0.3246
+  tfidf_logreg C=5.0: val AP = 0.3562
+
+=== cross: train 148,784 | val 9,369 | test 23,867
+  tfidf_logreg C=0.1: val AP = 0.1212
+  tfidf_logreg C=1.0: val AP = 0.0967
+  tfidf_logreg C=5.0: val AP = 0.0856
+
+setting        model     n  positives  prevalence    ap  ap_ci_low  ap_ci_high  roc_auc  p_at_r30  p_at_r50  precision  recall    f1
+ within  length_only 18211        861       0.047 0.114      0.103       0.128    0.713     0.132     0.106      0.135   0.266 0.179
+ within tfidf_logreg 18211        861       0.047 0.358      0.326       0.392    0.844     0.484     0.285      0.424   0.368 0.394
+  cross  length_only 23867       1059       0.044 0.117      0.106       0.131    0.737     0.144     0.110      0.142   0.343 0.201
+  cross tfidf_logreg 23867       1059       0.044 0.103      0.095       0.115    0.730     0.126     0.109      0.116   0.432 0.182
+
+saved results/baseline_results.csv, .json and baseline_scores.parquet
