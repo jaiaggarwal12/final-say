@@ -14,3 +14,4 @@
 - Normalized-exact duplicates: dropped groups with conflicting labels; kept one copy of consistent groups (global, so no exact copy crosses splits).
 - Dropped vulnerable rows whose fix changes only comments/whitespace; dropped functions over 8,000 chars.
 - Cross-project split: Chrome, linux, Android and hosting-site pseudo-projects are train-only; val/test projects drawn by seeded shuffle (seed 42), not hand-picked.
+- Cross-project val/test rows flagged by the near-duplicate check (near_dup_cross) are excluded from evaluation; the flag stays in the parquet.
