@@ -16,3 +16,4 @@
 - Cross-project split: Chrome, linux, Android and hosting-site pseudo-projects are train-only; val/test projects drawn by seeded shuffle (seed 42), not hand-picked.
 - Cross-project val/test rows flagged by the near-duplicate check (near_dup_cross) are excluded from evaluation; the flag stays in the parquet.
 - Joern pilot: 60 sampled functions parsed as one folder, exported as neo4jcsv (--repr all); a function's graph is the AST subtree of its METHOD node plus all edges inside it; each graph maps back to its .c file via the uid in the file name, which is also stored in the graph JSON.
+- CORRECTION: BigVul's lang tag is unreliable; pilot failures were C++ class methods saved as .c. The dataset is C/C++, not C only. Files containing C++ syntax are written as .cpp for Joern.
