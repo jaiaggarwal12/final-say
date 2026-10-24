@@ -1,30 +1,30 @@
 node columns: [':ID', ':LABEL', 'METHOD_FULL_NAME', 'NAME', 'SIGNATURE', '_group', 'ARGUMENT_INDEX', 'ARGUMENT_LABEL', 'ARGUMENT_NAME', 'CODE', 'COLUMN_NUMBER', 'DYNAMIC_TYPE_HINT_FULL_NAME', 'LINE_NUMBER', 'OFFSET']
 edge columns: [':START_ID', ':END_ID', ':TYPE', '_group', 'VARIABLE']
 
-edge types in the whole export: {'REACHING_DEF': 9599, 'AST': 6439, 'EVAL_TYPE': 5215, 'CONTAINS': 4219, 'CFG': 3736, 'DOMINATE': 3542, 'POST_DOMINATE': 3542, 'ARGUMENT': 2397, 'CDG': 2259, 'REF': 1556, 'CALL': 1231, 'PARAMETER_LINK': 612}
+edge types in the whole export: {'REACHING_DEF': 11052, 'AST': 7467, 'EVAL_TYPE': 6068, 'CONTAINS': 4828, 'CFG': 4269, 'DOMINATE': 4049, 'POST_DOMINATE': 4049, 'ARGUMENT': 2751, 'CDG': 2556, 'REF': 1789, 'CALL': 1425, 'PARAMETER_LINK': 733}
 
-functions in manifest: 60 | graphs extracted: 49 (82%)
+functions in manifest: 60 | graphs extracted: 57 (95%)
 
 per-class graph size (label 1 = vulnerable):
 label                    0      1
-nodes        mean     86.9   82.6
-             median   86.0   84.0
-edges        mean    673.5  622.8
-             median  644.0  621.0
-AST          mean     85.9   81.6
-             median   85.0   83.0
-CFG          mean     70.6   67.2
-             median   66.0   66.5
-REACHING_DEF mean    175.3  154.8
-             median  159.0  135.0
-CDG          mean     47.7   44.7
-             median   36.0   36.0
-failed to map to a method: ['f_6a06b434d8fd', 'f_a1a1ce9b068d', 'f_ad8a32355b36', 'f_13d379f313ca', 'f_a09777a015a4', 'f_7e6478d61253', 'f_135f0e3fd9bf', 'f_03f6e8bbe021', 'f_30aa12695bc8', 'f_e3ac302590fb', 'f_01dfe991d1a8']
+nodes        mean     83.1   83.8
+             median   83.0   89.5
+edges        mean    639.6  631.8
+             median  644.0  674.0
+AST          mean     82.1   82.8
+             median   82.0   88.5
+CFG          mean     67.2   67.8
+             median   66.0   73.0
+REACHING_DEF mean    165.3  158.1
+             median  151.0  148.0
+CDG          mean     44.9   44.8
+             median   36.0   42.0
+failed to map to a method: ['f_7e6478d61253', 'f_30aa12695bc8', 'f_01dfe991d1a8']
 
 mapping evidence (graph -> source file -> label):
-  f_924be8c1930d.json <- f_924be8c1930d.c | label=0 | ImageMagick | CVE-2016-10061 | method=DecodeLabImage | 152 nodes, 1299 edges
-  f_e58957c5502f.json <- f_e58957c5502f.c | label=0 | virglrenderer | CVE-2017-6386 | method=vrend_renderer_resource_attach_iov | 41 nodes, 264 edges
-  f_55fe417e083e.json <- f_55fe417e083e.c | label=0 | keepalived | CVE-2018-19044 | method=keyword_alloc_sub | 70 nodes, 538 edges
+  f_b2fa7c1d27ca.json <- f_b2fa7c1d27ca.c | label=0 | samba | CVE-2015-5296 | method=clean_path | 122 nodes, 929 edges
+  f_6a06b434d8fd.json <- f_6a06b434d8fd.cpp | label=1 | Chrome | CVE-2012-5148 | method=TabDetachedAtImpl | 101 nodes, 759 edges
+  f_32e0e1ab1201.json <- f_32e0e1ab1201.c | label=0 | libarchive | CVE-2016-4302 | method=read_symlink_stored | 95 nodes, 703 edges
 Example graph f_27e220ebcb5a (vulnerable, project=tcpdump, CVE-2017-13687)
 nodes=38 edges=251
 
@@ -51,10 +51,12 @@ CONTROL FLOW (CFG: runs before)
 DATA FLOW (REACHING_DEF: a definition reaches a use)
   L6 BLOCK `<empty>`  ->  L6 CALL `ND_PRINT((ndo, "[|chdlc]"))`   [variable: <empty>]
   L3 CALL `length = h->len`  ->  L1 METHOD_RETURN `RET`   [variable: length = h->len]
-  L3 CALL `h->len`  ->  L1 METHOD_PARAMETER_OUT `const struct pcap_pkthdr *h`   [variable: h->len]
   L3 CALL `h->len`  ->  L3 IDENTIFIER `length`   [variable: h->len]
   L3 CALL `h->len`  ->  L3 CALL `length = h->len`   [variable: h->len]
   L3 CALL `h->len`  ->  L4 IDENTIFIER `h`   [variable: h->len]
+  L3 CALL `h->len`  ->  L1 METHOD_PARAMETER_OUT `const struct pcap_pkthdr *h`   [variable: h->len]
   L3 CALL `h->len`  ->  L1 METHOD_RETURN `RET`   [variable: h->len]
   L4 CALL `caplen = h->caplen`  ->  L1 METHOD_RETURN `RET`   [variable: caplen = h->caplen]
 
+
+saved results/pilot/cpg_example.png

@@ -98,7 +98,7 @@ man = pd.read_csv(PILOT / "manifest.csv")
 records, graphs = [], {}
 for _, m in man.iterrows():
     uid = m["uid"]
-    rec = {"uid": uid, "label": int(m["vul"]), "project": m["project_g"], "cve": m["CVE ID"],
+    rec = {"uid": uid, "ext": m["ext"], "label": int(m["vul"]), "project": m["project_g"], "cve": m["CVE ID"],
            "cwe": m["CWE ID"], "chars": int(m["chars"]), "status": "no_method", "method": "",
            "nodes": 0, "edges": 0, "AST": 0, "CFG": 0, "REACHING_DEF": 0, "CDG": 0}
     cand = methods[col(methods, "FILENAME").str.contains(uid, regex=False)]
@@ -118,7 +118,7 @@ for _, m in man.iterrows():
         rec.update(status="ok", method=rows[best].get("NAME", ""), nodes=len(node_list),
                    edges=len(edge_list), AST=by_type["AST"], CFG=by_type["CFG"],
                    REACHING_DEF=by_type["REACHING_DEF"], CDG=by_type["CDG"])
-        graphs[uid] = {"uid": uid, "source_file": f"{uid}.c", "label": rec["label"],
+        graphs[uid] = {"uid": uid, "source_file": f"{uid}{m['ext']}", "label": rec["label"],
                        "project": rec["project"], "commit_id": m["commit_id"], "cve": rec["cve"],
                        "cwe": rec["cwe"], "norm_hash": m["norm_hash"], "method": rec["method"],
                        "nodes": node_list, "edges": edge_list}
@@ -140,7 +140,7 @@ print("failed to map to a method:", failed if failed else "none")
 
 print("\nmapping evidence (graph -> source file -> label):")
 for _, r in ok.sample(min(3, len(ok)), random_state=1).iterrows():
-    print(f"  {r.uid}.json <- {r.uid}.c | label={r.label} | {r.project} | {r.cve} | "
+    print(f"  {r.uid}.json <- {r.uid}{r.ext} | label={r.label} | {r.project} | {r.cve} | "
           f"method={r.method} | {r.nodes} nodes, {r.edges} edges")
 
 # ---- one worked example: examples of each relationship type, plus a picture ----

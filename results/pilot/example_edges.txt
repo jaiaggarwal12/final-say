@@ -24,9 +24,9 @@ CONTROL FLOW (CFG: runs before)
 DATA FLOW (REACHING_DEF: a definition reaches a use)
   L6 BLOCK `<empty>`  ->  L6 CALL `ND_PRINT((ndo, "[|chdlc]"))`   [variable: <empty>]
   L3 CALL `length = h->len`  ->  L1 METHOD_RETURN `RET`   [variable: length = h->len]
-  L3 CALL `h->len`  ->  L1 METHOD_PARAMETER_OUT `const struct pcap_pkthdr *h`   [variable: h->len]
   L3 CALL `h->len`  ->  L3 IDENTIFIER `length`   [variable: h->len]
   L3 CALL `h->len`  ->  L3 CALL `length = h->len`   [variable: h->len]
   L3 CALL `h->len`  ->  L4 IDENTIFIER `h`   [variable: h->len]
+  L3 CALL `h->len`  ->  L1 METHOD_PARAMETER_OUT `const struct pcap_pkthdr *h`   [variable: h->len]
   L3 CALL `h->len`  ->  L1 METHOD_RETURN `RET`   [variable: h->len]
   L4 CALL `caplen = h->caplen`  ->  L1 METHOD_RETURN `RET`   [variable: caplen = h->caplen]
