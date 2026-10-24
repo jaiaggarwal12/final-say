@@ -41,6 +41,23 @@ Random baseline AP equals prevalence (about 0.047 within, 0.044 cross).
 
 ![Baseline PR curves](results/figures/04_baseline_pr_curves.png)
 
+## Graph extraction pilot (Joern)
+
+A first test of the graph stage: 60 BigVul functions (30 vulnerable, 30 safe; 250-1,200 characters, one per project per class) were parsed with Joern into code property graphs.
+
+- **49 of 60 functions (82%)** produced a function graph; 11 did not (cause under investigation).
+- **Graph size:** about 85 nodes and 650 edges per function on average (about 86 syntax edges, 69 control-flow edges, 165 data-flow edges, 46 control-dependence edges, plus other edge types).
+- **Each graph maps back to its function:** every function is written as `f_<hash>.c`; the graph JSON stores that ID with the label, project, commit and CVE.
+- **Note:** in BigVul a safe function carries the CVE of the commit it came from, so label 0 with a CVE ID is expected.
+
+Example: `chdlc_if_print` from tcpdump (CVE-2017-13687, label: vulnerable), 38 nodes.
+- Syntax: the function body block contains `length = h->len` and `caplen = h->caplen`.
+- Control flow: `h->len` runs before `length = h->len`, which runs before the next statement.
+- Data flow: the value read from `h->len` reaches the assignment `length = h->len`.
+
+![One function, three views](results/pilot/cpg_panels.png)
+
+**Pilot limitations:** the sample is small and length-matched, so graph sizes say nothing about class differences. Functions come without headers, so macros and types stay unresolved (for example `<unknown> CHDLC_HDRLEN`).
 ## Roadmap
 - [x] **Phase 1:** data, cleaning, leakage-safe splits, leakage audit
 - [ ] **Phase 2:** Semgrep baseline, Joern code-property-graph extraction, PyTorch Geometric dataset with CodeBERT node features
