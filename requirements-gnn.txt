@@ -1,0 +1,4 @@
+# Install in Kaggle's GPU runtime after checking its existing torch version.
+torch-geometric>=2.5,<3
+transformers>=4.40,<6
+optuna>=3.6,<5
