@@ -7,6 +7,9 @@ results/checkpoints/
 *.pt
 *.pth
 *.bin
+# Per-function predictions are reproducible from the checkpoint and dataset;
+# keep these larger intermediate score tables out of git.
+/results/gnn/**/test_scores_seed*.parquet
 .ipynb_checkpoints/
 joern-cli/
 workspace/
