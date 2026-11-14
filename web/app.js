@@ -28,14 +28,14 @@ function heroGraph() {
 function landing(path) {
   return `${nav(path)}
   <main>
-    <section class="shell hero"><div><span class="eyebrow">Security through structure</span><h1>See the code<br>behind the <em>risk.</em></h1><p class="hero-copy">VulnGNN studies whether code property graphs can reveal vulnerability patterns that hold up on software projects the model has never seen.</p><div class="hero-ctas"><a class="button button-primary" href="/analyze" data-link>Analyze code <span>↗</span></a><a class="button button-soft" href="/research" data-link>Explore the research</a></div><div class="hero-note">Research prototype · C and C++ · Graph inference is not yet available</div></div>
+    <section class="shell hero"><div><span class="eyebrow">Security through structure</span><h1>See the code<br>behind the <em>risk.</em></h1><p class="hero-copy">VulnGNN studies whether code property graphs can reveal vulnerability patterns that hold up on software projects the model has never seen.</p><div class="hero-ctas"><a class="button button-primary" href="/analyze" data-link>Analyze Code <span>↗</span></a><a class="button button-soft" href="#technology">Explore the Technology</a></div><div class="hero-note">Research prototype · C and C++ · Graph inference is not yet available</div></div>
       <div class="hero-visual"><div class="orbit"></div><div class="visual-card"><div class="visual-head"><strong>STRUCTURAL SIGNAL</strong><span class="window-dots"><i></i><i></i><i></i></span></div><div class="graph-art">${heroGraph()}</div></div><div class="floating-pill pill-top"><b></b>AST · CFG · DATA FLOW</div><div class="floating-pill pill-bottom"><b></b>Illustrative graph</div></div>
     </section>
     <section class="problem section"><div class="shell problem-grid"><div class="problem-art"><div class="code-window"><div class="window-dots"><i></i><i></i><i></i></div><div class="code-row"><span>01</span><span>char *<b>copy_input</b>(char *src) {</span></div><div class="code-row"><span>02</span><span>  char buf[<mark>64</mark>];</span></div><div class="code-row"><span>03</span><span>  <mark>strcpy</mark>(buf, src);</span></div><div class="code-row"><span>04</span><span>  return buf;</span></div><div class="code-row"><span>05</span><span>}</span></div></div><div class="side-note">Illustrative code · not a VulnGNN prediction</div></div><div><span class="eyebrow">The generalization problem</span><h2 class="page-title">A familiar name can hide an unfamiliar risk.</h2><p class="page-lede">Text models can learn project-specific vocabulary alongside code behavior. When a project is new, those familiar signals disappear. This research asks whether the structure of code offers a more transferable view.</p><div class="insight"><span class="insight-num">01</span><div><strong>Vocabulary shifts</strong><p>Identifiers and conventions change between repositories, even when the underlying behavior does not.</p></div></div><div class="insight"><span class="insight-num">02</span><div><strong>Structure can travel</strong><p>Control, syntax and data dependencies describe how code behaves, not just what it is called.</p></div></div></div></div></section>
     <section class="workflow section"><div class="shell"><div class="section-heading"><span class="eyebrow">From source to structure</span><h2>How the research pipeline works</h2><p>Each stage preserves a link back to the original function and its source lines.</p></div><div class="steps">${[['01','↥','Add source','Provide a C or C++ function for analysis.'],['02','⌘','Build the graph','Joern extracts syntax, control flow and data dependencies.'],['03','◈','Read structure','A graph model learns from connected code behavior.'],['04','⌕','Assess risk','The model scores a function for vulnerability signals.'],['05','↗','Inspect evidence','Review source lines and graph context behind a result.']].map(x=>`<article class="step-card"><span class="step-count">STEP ${x[0]}</span><div class="step-icon">${x[1]}</div><h3>${x[2]}</h3><p>${x[3]}</p></article>`).join('')}</div></div></section>
-    <section class="section"><div class="shell"><div class="section-heading"><span class="eyebrow">A graph with context</span><h2>Different edges tell different stories.</h2><p>The graph representation combines complementary views of a function. The current model and full-scale graph dataset remain in development.</p></div><div class="tech-grid">${[['Structure','AST','Abstract syntax tree','Captures how expressions and statements are nested.'],['Control','CFG','Control-flow graph','Connects possible execution paths through branches and loops.'],['Data','REACHING_DEF','Data dependencies','Tracks where values originate and how they move.'],['Influence','CDG','Control dependence','Shows which decisions govern a statement.'],['Model','GGNN','Gated graph neural network','A planned architecture for learning across graph neighborhoods.'],['Model','R-GCN','Relational graph convolution','The implemented research model distinguishes edge relations.']].map((x,i)=>`<article class="tech-card"><span class="type">${x[0]}</span><div class="tech-symbol"><i></i><i></i><i></i><i></i><i></i></div><h3>${x[1]}</h3><p><b>${x[2]}.</b> ${x[3]}</p></article>`).join('')}</div></div></section>
+    <section class="section" id="technology"><div class="shell"><div class="section-heading"><span class="eyebrow">A graph with context</span><h2>Different edges tell different stories.</h2><p>The graph representation combines complementary views of a function. The current model and full-scale graph dataset remain in development.</p></div><div class="tech-grid">${[['Structure','AST','Abstract syntax tree','Captures how expressions and statements are nested.'],['Control','CFG','Control-flow graph','Connects possible execution paths through branches and loops.'],['Data','REACHING_DEF','Data dependencies','Tracks where values originate and how they move.'],['Influence','CDG','Control dependence','Shows which decisions govern a statement.'],['Model','GGNN','Gated graph neural network','A planned architecture for learning across graph neighborhoods.'],['Model','R-GCN','Relational graph convolution','The implemented research model distinguishes edge relations.']].map((x,i)=>`<article class="tech-card"><span class="type">${x[0]}</span><div class="tech-symbol"><i></i><i></i><i></i><i></i><i></i></div><h3>${x[1]}</h3><p><b>${x[2]}.</b> ${x[3]}</p></article>`).join('')}</div></div></section>
     <section class="research-band section"><div class="shell"><div class="section-heading"><span class="eyebrow">Measured so far</span><h2>Text baselines show the generalization gap.</h2><p>Phase 2A evaluation uses held-out projects and within-project splits. The GNN has not yet been evaluated.</p></div><div class="metric-row" id="landing-metrics"><div class="loading-shimmer"></div><div class="loading-shimmer"></div><div class="loading-shimmer"></div></div><div class="section-cta"><p>See confidence intervals, model variants, per-project results and the evaluation protocol.</p><a class="button button-soft" href="/research" data-link>View research results <span>↗</span></a></div></div></section>
-    <section class="closing section"><div class="shell closing-inner"><div><span class="eyebrow">Built for careful research</span><h2>Explore the evidence. Follow the graph.</h2><p class="page-lede">Browse the measured baselines or inspect one of the real Joern pilot graphs.</p></div><div class="hero-ctas"><a class="button button-primary" href="/research" data-link>Explore research</a><a class="button button-soft" href="/graph" data-link>Open graph explorer</a></div></div></section>
+    <section class="closing section"><div class="shell closing-inner"><div><span class="eyebrow">Built for careful research</span><h2>Explore the evidence. Follow the graph.</h2><p class="page-lede">Browse the measured baselines or inspect one of the real Joern pilot graphs.</p></div><div class="hero-ctas"><a class="button button-primary" href="/analyze" data-link>Analyze Code</a><a class="button button-soft" href="/research" data-link>Explore research</a></div></div></section>
   </main>${footer}`;
 }
 
@@ -75,12 +75,26 @@ function render() {
   if (path === '/analyze') loadAnalysisStatus();
   if (path === '/research') loadResearch();
   if (path === '/graph' || path.startsWith('/graph/')) loadGraph(path.split('/')[2] || '');
+  if (location.hash) scrollToHash(location.hash);
+}
+
+function scrollToHash(hash) {
+  const id = decodeURIComponent(hash.slice(1));
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const target = document.getElementById(id);
+    if (target) window.scrollTo({top:target.getBoundingClientRect().top + window.scrollY,behavior:'smooth'});
+  }));
 }
 
 function bindCommon() {
   document.querySelectorAll('[data-link]').forEach(a => a.addEventListener('click', e => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    e.preventDefault(); history.pushState({}, '', a.getAttribute('href')); render(); window.scrollTo(0,0);
+    e.preventDefault(); const target = new URL(a.getAttribute('href'), location.href);
+    if (target.hash && target.pathname === location.pathname) {
+      history.pushState({}, '', target); scrollToHash(target.hash); return;
+    }
+    history.pushState({}, '', target); render();
+    if (!target.hash) window.scrollTo(0,0);
   }));
   const menu = document.querySelector('.menu-toggle');
   menu?.addEventListener('click', () => { const navEl=document.querySelector('.nav'); const open=navEl.classList.toggle('open'); menu.setAttribute('aria-expanded',String(open)); });
@@ -88,6 +102,7 @@ function bindCommon() {
   document.querySelectorAll('.section,.tech-card,.step-card').forEach(el=>{el.classList.add('reveal');reveal.observe(el);});
 }
 window.addEventListener('popstate', render);
+window.addEventListener('hashchange', () => { if (location.hash) scrollToHash(location.hash); });
 
 async function loadLandingMetrics() {
   const el = document.querySelector('#landing-metrics');
@@ -131,7 +146,7 @@ function drawProjects(){
   document.querySelector('#project-table').innerHTML=rows.length?`<table class="results-table"><thead><tr><th>Project</th><th>Variant</th><th>N</th><th>Vulnerable</th><th>Prevalence</th><th>AP</th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.project_g)}</td><td>${esc(variantName(r.variant))}</td><td>${Number(r.n).toLocaleString()}</td><td>${Number(r.positives).toLocaleString()}</td><td>${pct(r.prevalence,1)}</td><td class="score">${fmt(r.ap,3)}</td><td>${fmt(r.precision,3)}</td><td>${fmt(r.recall,3)}</td><td>${fmt(r.f1,3)}</td></tr>`).join('')}</tbody></table>`:'<p class="page-copy">No eligible project rows in this result set.</p>';
 }
 
-let graphRows=[], currentGraph=null, transform={x:0,y:0,k:1}, selectedNode=null, dragState=null;
+let graphRows=[], currentGraph=null, transform={x:0,y:0,k:1}, selectedNode=null;
 async function loadGraph(pathId){
   const picker=document.querySelector('#graph-picker'); let stage='fetching graph list';
   try{const {results,count}=await get('/api/graphs');graphRows=results;stage='populating graph list';document.querySelector('#graph-count').textContent=`${count} pilot graphs · real Joern output`;

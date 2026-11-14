@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import json
 import math
-import mimetypes
 import re
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
