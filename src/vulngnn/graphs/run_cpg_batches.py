@@ -84,6 +84,40 @@ def directory_size_bytes(path: Path) -> int:
     return sum(file.stat().st_size for file in path.rglob("*") if file.is_file())
 
 
+def ensure_batch_sources(batch_dir: Path, batch: pd.DataFrame, data_path: Path) -> None:
+    """Restore missing source snippets from the parquet before retrying a batch.
+
+    Compact graph archives intentionally omit Joern's large source/export
+    working directories. This lets a resumed Kaggle run reconstruct only
+    unfinished or invalid batches from the attached source parquet.
+    """
+    source_dir = batch_dir / "src"
+    missing = [row for row in batch.itertuples(index=False)
+               if not (source_dir / f"{row.uid}{row.ext}").is_file()]
+    if not missing:
+        return
+    if not data_path.is_file():
+        raise FileNotFoundError(
+            f"Cannot restore {len(missing)} missing batch source files; "
+            f"processed parquet not found: {data_path}"
+        )
+    hashes = {str(row.norm_hash) for row in missing}
+    source = pd.read_parquet(data_path, columns=["norm_hash", "func_before"])
+    source["norm_hash"] = source["norm_hash"].astype(str)
+    source = source[source["norm_hash"].isin(hashes)]
+    if source["norm_hash"].duplicated().any():
+        raise ValueError("Processed parquet has duplicate norm_hash values")
+    code_by_hash = source.set_index("norm_hash")["func_before"]
+    absent = hashes.difference(code_by_hash.index)
+    if absent:
+        raise KeyError(f"Missing {len(absent)} function hashes in {data_path}")
+    source_dir.mkdir(parents=True, exist_ok=True)
+    for row in missing:
+        code = code_by_hash.loc[str(row.norm_hash)]
+        (source_dir / f"{row.uid}{row.ext}").write_text(str(code).rstrip() + "\n")
+    print(f"  restored {len(missing):,} missing source files from parquet", flush=True)
+
+
 def resumable_batch(stats_path: Path, output_path: Path,
                     manifest: pd.DataFrame, max_nodes: int) -> pd.DataFrame | None:
     """Return prior stats only if they cover this batch and its graph UIDs."""
@@ -235,6 +269,8 @@ def export_graphs(export_dir: Path, manifest: pd.DataFrame, output_jsonl: Path,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data", type=Path, default=ROOT / "data/processed/bigvul_clean.parquet",
+                        help="source parquet used to restore missing batch inputs on resume")
     parser.add_argument("--workset", type=Path, default=ROOT / "data/graph_workset")
     parser.add_argument("--joern-dir", type=Path, default=ROOT / "tools/joern/joern-cli")
     parser.add_argument("--java-home", type=Path, default=None)
@@ -290,6 +326,7 @@ def main() -> None:
                 print("  resuming: validated prior outputs", flush=True)
                 all_stats.extend(old.to_dict("records"))
                 continue
+        ensure_batch_sources(batch_dir, batch_manifest, args.data.resolve())
         shutil.rmtree(batch_dir / "export", ignore_errors=True)
         (batch_dir / "cpg.bin").unlink(missing_ok=True)
         try:

@@ -107,6 +107,7 @@ def main() -> None:
         print(f"Reusing existing workset manifest: {manifest}", flush=True)
 
     command = [sys.executable, "-m", "vulngnn.graphs.run_cpg_batches",
+               "--data", str(args.data.resolve()),
                "--workset", str(args.workset.resolve()),
                "--joern-dir", str(joern_dir), "--max-nodes", str(args.max_nodes)]
     if args.java_home:

@@ -167,27 +167,43 @@ PYTHONPATH=src python -m vulngnn.graphs.prepare_graph_workset --plan-only
 ```
 The planner code selects vulnerable functions, eligible validation/test rows (excluding cross-project near-duplicates), and a seeded sample of safe training functions. Full workset counts have not been recorded as a results artifact, and full Joern extraction has not run. Review a fresh read-only plan before materializing it. Full source-file generation and Joern extraction should run on Kaggle. To materialize the workset there, run `PYTHONPATH=src python -m vulngnn.graphs.prepare_graph_workset --negative-ratio 5 --batch-size 1000`.
 
-The processed data and Joern installation are excluded from Git. Package them locally for a private Kaggle Dataset upload with:
+The processed data and Joern installation are excluded from Git. Package those inputs together with the reviewed graph-pipeline source for a private Kaggle Dataset upload with:
 ```bash
-.venv/bin/python scripts/package_kaggle_inputs.py
+.venv/bin/python scripts/package_kaggle_inputs.py \
+  --output /private/tmp/gnn-vulnerability-kaggle-inputs.tar.gz
 ls -lh /private/tmp/gnn-vulnerability-kaggle-inputs.tar.gz
 ```
-The archive preserves `data/processed/bigvul_clean.parquet` and `tools/joern/joern-cli`. After adding that private dataset to a Kaggle notebook, extract it under `/kaggle/working`:
+The archive contains `data/processed/bigvul_clean.parquet`, `tools/joern/joern-cli`, `src/`, and `scripts/run_graph_pipeline.py`. Upload the archive as a private Kaggle Dataset, attach it to a CPU notebook, enable Internet, then extract it under `/kaggle/working/gnn`:
 ```bash
-tar -xzf /kaggle/input/<your-dataset>/gnn-vulnerability-kaggle-inputs.tar.gz -C /kaggle/working
+mkdir -p /kaggle/working/gnn
+tar -xzf /kaggle/input/<dataset-slug>/gnn-vulnerability-kaggle-inputs.tar.gz \
+  -C /kaggle/working/gnn
+export PROJECT=/kaggle/working/gnn
+export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
+java -version
 ```
 
-Make a checkout containing the reviewed graph-pipeline source available in `/kaggle/working` as well; this local workspace may include uncommitted changes. Set Java 21 in the Kaggle runtime. The wrapper prepares the workset if needed, runs Joern with resume enabled, audits the results, and can bundle the compact outputs for download. Start with one batch:
+If `java -version` is not Java 21, install it while Internet is enabled, then set `JAVA_HOME` to that installation. The pack already contains the reviewed source, so no separate checkout is needed. Start with one batch:
 ```bash
+sudo apt-get update && sudo apt-get install -y openjdk-21-jdk-headless
+export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
+java -version
+cd "$PROJECT"
 python scripts/run_graph_pipeline.py \
-  --data /kaggle/input/<prepared-data>/bigvul_clean.parquet \
-  --joern-dir /kaggle/input/<joern-input>/joern-cli \
+  --data "$PROJECT/data/processed/bigvul_clean.parquet" \
+  --joern-dir "$PROJECT/tools/joern/joern-cli" \
   --java-home "$JAVA_HOME" \
-  --workset /kaggle/working/data/graph_workset \
+  --workset "$PROJECT/data/graph_workset" \
   --limit-batches 1 \
-  --archive /kaggle/working/graph-smoke.tar.gz
+  --archive /kaggle/working/graphs-partial.tar.gz
 ```
-If the smoke audit is clean, rerun the same command without `--limit-batches` and change the archive name to `graphs-full.tar.gz`. The wrapper resumes already-complete batches by default. Keep `/kaggle/working` as the workset location so Kaggle can expose the output archive when the notebook is saved. If the Kaggle runtime does not set `JAVA_HOME`, locate its Java 21 installation and pass that directory explicitly.
+If the smoke audit is clean, rerun the command without `--limit-batches` and set `--archive /kaggle/working/graphs-full.tar.gz`. The full-workset extrapolation is about 74–77 minutes, within Kaggle's documented 12-hour CPU session, so plan for one session and leave time for the audit and packaging. To resume in a fresh session, attach both the original inputs Dataset and the prior notebook output Dataset, then run:
+```bash
+mkdir -p "$PROJECT/data/graph_workset"
+tar -xzf /kaggle/input/<resume-dataset-slug>/graphs-partial.tar.gz \
+  -C "$PROJECT/data/graph_workset"
+```
+Rerun the full pipeline command above. Completed batches are validated and skipped; missing source snippets for unfinished batches are rebuilt from the attached parquet. Keep the compact archive under `/kaggle/working` so Kaggle saves it as notebook output.
 Compact graphs are written as JSONL under `data/graph_workset/graphs/`; per-function and aggregated project/split/class parse coverage is written alongside them. Graphs larger than 500 nodes retain the first 500 nodes in deterministic AST breadth-first order and record the original count and dropped-node count. Only AST, CFG, REACHING_DEF and CDG edges are kept.
 
 The independent audit checks that every planned uid has exactly one status, every successful status has exactly one JSONL graph, metadata and labels match the manifest, edge indices stay within the node list, and truncation counts agree. Use `--allow-partial` only to audit a limited smoke run; a full run should report `complete: true` and an empty `errors` list in `graphs/audit_summary.json`.
