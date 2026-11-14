@@ -1,0 +1,3 @@
+split,model,variant,n,positives,prevalence,precision,recall,f1,scanned_files,timeout_files,crashed_files,parse_failure_files,flagged_files
+within,cppcheck,warning_or_error,18211,861,0.047279117017187414,0.07996406109613657,0.10336817653890824,0.09017223910840934,18211,0,0,359,1113
+cross,cppcheck,warning_or_error,23867,1059,0.04437088867473918,0.08280565026790063,0.16052880075542966,0.10925449871465295,23867,0,0,213,2053

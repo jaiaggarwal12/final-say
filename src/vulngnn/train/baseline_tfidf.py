@@ -16,7 +16,22 @@ from vulngnn.utils import set_seed
 PATH = "data/processed/bigvul_clean.parquet"
 COMMENTS = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
 TOKEN = re.compile(r"[A-Za-z_]\w*|\d+|[^\s\w]")
+IDENTIFIER = re.compile(r"^[A-Za-z_]\w*$")
 SETTINGS = {"within": "split_within", "cross": "split_cross"}
+C_GRID = [0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0, 30.0]
+C_KEYWORDS = set("""
+alignas alignof and and_eq asm atomic_cancel atomic_commit atomic_noexcept auto
+bitand bitor bool break case catch char char8_t char16_t char32_t class compl
+concept const consteval constexpr constinit const_cast continue co_await co_return
+co_yield decltype default delete do double dynamic_cast else enum explicit export
+extern false float for friend goto if inline int long mutable namespace new noexcept
+not not_eq nullptr operator or or_eq private protected public register reinterpret_cast
+requires return short signed sizeof static static_assert static_cast struct switch
+template this thread_local throw true try typedef typeid typename union unsigned using
+restrict virtual void volatile wchar_t while xor xor_eq _Alignas _Alignof _Atomic _Bool
+_BitInt _Complex _Generic _Imaginary _Noreturn _Pragma _Static_assert _Thread_local
+typeof typeof_unqual
+""".split())
 
 
 def length_features(d):
@@ -25,11 +40,40 @@ def length_features(d):
     return np.log1p(np.column_stack([chars, lines]))
 
 
+def tokenized(code, mask_identifiers=False):
+    tokens = TOKEN.findall(COMMENTS.sub(" ", code))
+    if mask_identifiers:
+        tokens = ["IDENT" if IDENTIFIER.fullmatch(t) and t not in C_KEYWORDS else t
+                  for t in tokens]
+    return " ".join(tokens)
+
+
+def fit_tfidf(tr, va, te, ytr, yva, model_name, mask_identifiers=False):
+    train_text = [tokenized(s, mask_identifiers) for s in tr["func_before"]]
+    val_text = [tokenized(s, mask_identifiers) for s in va["func_before"]]
+    test_text = [tokenized(s, mask_identifiers) for s in te["func_before"]]
+    vec = TfidfVectorizer(token_pattern=r"\S+", lowercase=False, ngram_range=(1, 2),
+                          min_df=5, max_features=100_000, sublinear_tf=True, dtype=np.float32)
+    Xtr = vec.fit_transform(train_text)  # vocabulary learned from train only
+    Xva = vec.transform(val_text)
+    best = None
+    for C in C_GRID:
+        clf = LogisticRegression(C=C, class_weight="balanced", solver="liblinear", max_iter=200)
+        clf.fit(Xtr, ytr)
+        sva = clf.predict_proba(Xva)[:, 1]
+        ap = average_precision_score(yva, sva)
+        print(f"  {model_name} C={C}: val AP = {ap:.4f}", flush=True)
+        if best is None or ap > best[0]:
+            best = (ap, C, sva, clf)
+    Xte = vec.transform(test_text)
+    ste = best[3].predict_proba(Xte)[:, 1]
+    return best[2], ste, best[1]
+
+
 set_seed(42)
 df = pd.read_parquet(PATH).reset_index(drop=True)
 df["near_dup_cross"] = df["near_dup_cross"].astype(bool)
 print("tokenizing...", flush=True)
-df["toks"] = [" ".join(TOKEN.findall(COMMENTS.sub(" ", s))) for s in df["func_before"]]
 
 results, score_frames = [], []
 for setting, col in SETTINGS.items():
@@ -46,26 +90,23 @@ for setting, col in SETTINGS.items():
     scored["length_only"] = (lm.predict_proba(length_features(va))[:, 1],
                              lm.predict_proba(length_features(te))[:, 1], None)
 
-    vec = TfidfVectorizer(token_pattern=r"\S+", lowercase=False, ngram_range=(1, 2),
-                          min_df=5, max_features=100_000, sublinear_tf=True, dtype=np.float32)
-    Xtr = vec.fit_transform(tr["toks"])  # vocabulary learned from train only
-    Xva, Xte = vec.transform(va["toks"]), vec.transform(te["toks"])
-    best = None
-    for C in [0.1, 1.0, 5.0]:
-        clf = LogisticRegression(C=C, class_weight="balanced", solver="liblinear", max_iter=200)
-        clf.fit(Xtr, ytr)
-        sva = clf.predict_proba(Xva)[:, 1]
-        ap = average_precision_score(yva, sva)
-        print(f"  tfidf_logreg C={C}: val AP = {ap:.4f}", flush=True)
-        if best is None or ap > best[0]:
-            best = (ap, C, sva, clf.predict_proba(Xte)[:, 1])
-    scored["tfidf_logreg"] = (best[2], best[3], best[1])
+    scored["tfidf_logreg"] = fit_tfidf(
+        tr, va, te, ytr, yva, "tfidf_logreg", mask_identifiers=False)
+    scored["tfidf_masked_logreg"] = fit_tfidf(
+        tr, va, te, ytr, yva, "tfidf_masked_logreg", mask_identifiers=True)
 
     for name, (sva, ste, C) in scored.items():
         thr = best_f1_threshold(yva, sva)
-        res = summarize(yte, ste, thr)
+        cluster_col = "project_g" if setting == "cross" else "group"
+        res = summarize(yte, ste, thr,
+                        clusters=te[cluster_col].astype(str).to_numpy(), seed=42)
         results.append({"setting": setting, "model": name, "chosen_C": C, **res})
-        score_frames.append(pd.DataFrame({"setting": setting, "model": name, "y": yte, "score": ste}))
+        score_frames.append(pd.DataFrame({
+            "setting": setting, "model": name,
+            "norm_hash": te["norm_hash"].astype(str).to_numpy(),
+            "project_g": te["project_g"].astype(str).to_numpy(),
+            "y": yte, "score": ste,
+        }))
 
 tab = pd.DataFrame(results)
 cols = ["setting", "model", "n", "positives", "prevalence", "ap", "ap_ci_low", "ap_ci_high",

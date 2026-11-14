@@ -1,0 +1,11 @@
+{
+  "cppcheck_version": "Cppcheck 2.22.0",
+  "cppcheck_version_hash": "0ffff6f041d0",
+  "timeout_seconds": 2.0,
+  "seed": 42,
+  "sample_per_cell": 0,
+  "operating_point": "flag if any finding severity is warning or error",
+  "timeout_or_crash_rows_are_unflagged": true,
+  "parse_error_findings_are_scored_by_severity": true,
+  "source_extension_rule": "same C/C++ heuristic as frozen Semgrep baseline"
+}

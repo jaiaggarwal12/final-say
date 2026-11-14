@@ -1,0 +1,15 @@
+split,model,variant,chosen_C,validation_ap,threshold,threshold_source,validation_n,validation_positives,validation_prevalence
+within,length_only,log_chars_lines,,0.10645913946552932,0.6843933512781317,validation_best_f1,18210.0,861.0,0.04728171334431631
+within,tfidf_logreg,raw_tokens,10.0,0.35952367672253416,0.7436099416916487,validation_best_f1,18210.0,861.0,0.04728171334431631
+within,tfidf_logreg,masked_api_kept,0.1,0.1238264480040138,0.6862536921261331,validation_best_f1,18210.0,861.0,0.04728171334431631
+within,tfidf_logreg,fully_masked,0.1,0.12486984620653122,0.6821130043487975,validation_best_f1,18210.0,861.0,0.04728171334431631
+cross,length_only,log_chars_lines,,0.11954658573292765,0.7214060558235095,validation_best_f1,9369.0,530.0,0.056569537837549366
+cross,tfidf_logreg,raw_tokens,0.03,0.12894687705542882,0.6516371603214898,validation_best_f1,9369.0,530.0,0.056569537837549366
+cross,tfidf_logreg,masked_api_kept,0.01,0.13306621923996464,0.7058135166587237,validation_best_f1,9369.0,530.0,0.056569537837549366
+cross,tfidf_logreg,fully_masked,0.01,0.13633790160791304,0.7196028637359293,validation_best_f1,9369.0,530.0,0.056569537837549366
+within,semgrep,any_finding,,,0.5,fixed_alert_point,,,
+within,semgrep,security_severity,,,0.5,fixed_alert_point,,,
+cross,semgrep,any_finding,,,0.5,fixed_alert_point,,,
+cross,semgrep,security_severity,,,0.5,fixed_alert_point,,,
+within,cppcheck,warning_or_error,,,0.5,fixed_warning_or_error_point,,,
+cross,cppcheck,warning_or_error,,,0.5,fixed_warning_or_error_point,,,

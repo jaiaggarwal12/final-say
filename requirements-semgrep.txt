@@ -1,0 +1,2 @@
+# Optional static-analysis baseline. Kept separate from the core ML environment.
+semgrep==1.185.0

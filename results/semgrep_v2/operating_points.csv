@@ -1,0 +1,5 @@
+split,model,variant,n,positives,prevalence,precision,recall,f1,scanned_files,parse_error_files,timeout_files,crashed_files,unscanned_files
+within,semgrep,semgrep_any_finding,18211,861,0.047279117017187414,0.0,0.0,0.0,18211,68,0,0,0
+within,semgrep,semgrep_security_severity,18211,861,0.047279117017187414,0.0,0.0,0.0,18211,68,0,0,0
+cross,semgrep,semgrep_any_finding,23867,1059,0.04437088867473918,0.0,0.0,0.0,23867,167,0,0,0
+cross,semgrep,semgrep_security_severity,23867,1059,0.04437088867473918,0.0,0.0,0.0,23867,167,0,0,0
