@@ -21,11 +21,8 @@ def signature(code: str) -> MinHash:
     return m
 
 
-df = pd.read_parquet(PATH).reset_index(drop=True)
-sigs = [signature(s) for s in tqdm(df["func_before"], desc="minhash")]
-
-
-def flag(split_col: str, target: str) -> pd.Series:
+def flag(df: pd.DataFrame, sigs: list[MinHash], split_col: str,
+         target: str) -> pd.Series:
     lsh = MinHashLSH(threshold=THRESH, num_perm=NUM_PERM)
     for i in df.index[df[split_col] == "train"]:
         lsh.insert(str(i), sigs[i])
@@ -33,28 +30,38 @@ def flag(split_col: str, target: str) -> pd.Series:
     return pd.Series([len(lsh.query(sigs[i])) > 0 for i in idx], index=idx)
 
 
-for col, out in [("split_cross", "near_dup_cross"), ("split_within", "near_dup_within")]:
-    df[out] = False
-    for target in ["val", "test"]:
-        f = flag(col, target)
-        df.loc[f.index, out] = f.values
+def main() -> None:
+    df = pd.read_parquet(PATH).reset_index(drop=True)
+    sigs = [signature(code) for code in tqdm(df["func_before"], desc="minhash")]
 
-print("\nsplit        set   rows  near-dup rows (%)  vulnerable  near-dup vulnerable (%)")
-for col, out in [("split_cross", "near_dup_cross"), ("split_within", "near_dup_within")]:
-    for target in ["val", "test"]:
-        m = df[col] == target
-        mp = m & (df["vul"] == 1)
-        print(f"{col:<12} {target:<5} {int(m.sum()):>6} {int(df.loc[m, out].sum()):>7} "
-              f"({df.loc[m, out].mean():.1%})  {int(mp.sum()):>6} "
-              f"{int(df.loc[mp, out].sum()):>7} ({df.loc[mp, out].mean():.1%})")
+    for col, out in [("split_cross", "near_dup_cross"),
+                     ("split_within", "near_dup_within")]:
+        df[out] = False
+        for target in ["val", "test"]:
+            f = flag(df, sigs, col, target)
+            df.loc[f.index, out] = f.values
 
-t = df[df["split_cross"] == "test"]
-print("\nlargest cross-project test projects:")
-print(t.groupby("project_g")["vul"].agg(rows="size", vulnerable="sum")
-      .sort_values("rows", ascending=False).head(10))
-print("\ncross-project test projects with most near-dup rows:")
-print(t.groupby("project_g")["near_dup_cross"].agg(rows="size", near_dup="sum")
-      .sort_values("near_dup", ascending=False).head(10))
+    print("\nsplit        set   rows  near-dup rows (%)  vulnerable  near-dup vulnerable (%)")
+    for col, out in [("split_cross", "near_dup_cross"),
+                     ("split_within", "near_dup_within")]:
+        for target in ["val", "test"]:
+            m = df[col] == target
+            mp = m & (df["vul"] == 1)
+            print(f"{col:<12} {target:<5} {int(m.sum()):>6} {int(df.loc[m, out].sum()):>7} "
+                  f"({df.loc[m, out].mean():.1%})  {int(mp.sum()):>6} "
+                  f"{int(df.loc[mp, out].sum()):>7} ({df.loc[mp, out].mean():.1%})")
 
-df.to_parquet(PATH, index=False)
-print("\nsaved flags to", PATH)
+    t = df[df["split_cross"] == "test"]
+    print("\nlargest cross-project test projects:")
+    print(t.groupby("project_g")["vul"].agg(rows="size", vulnerable="sum")
+          .sort_values("rows", ascending=False).head(10))
+    print("\ncross-project test projects with most near-dup rows:")
+    print(t.groupby("project_g")["near_dup_cross"].agg(rows="size", near_dup="sum")
+          .sort_values("near_dup", ascending=False).head(10))
+
+    df.to_parquet(PATH, index=False)
+    print("\nsaved flags to", PATH)
+
+
+if __name__ == "__main__":
+    main()

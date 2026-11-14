@@ -26,6 +26,10 @@ def run(command: list[str], *, env: dict[str, str] | None = None) -> None:
 
 def make_archive(workset: Path, destination: Path) -> None:
     """Bundle only compact graph outputs and audit metadata for download."""
+    if destination.exists():
+        raise FileExistsError(
+            f"Refusing to overwrite existing graph archive: {destination}; choose a new path"
+        )
     members = [workset / "manifest.csv", workset / "coverage_by_project.csv"]
     graph_dir = workset / "graphs"
     members.extend(sorted(graph_dir.glob("*.jsonl")))

@@ -1,8 +1,13 @@
-# GNN-Based Source Code Vulnerability Detection
+# VulnGNN: Graph-Based Vulnerability Detection, Tested on Code It Has Never Seen
 
 > **Status:** Phase 1 (data and evaluation foundation) complete. Phase 2 in progress: expanded text, Semgrep Community Edition, and Cppcheck baselines are measured; full-scale graph extraction and the graph dataset remain. No GNN results yet.
 
 See the concise measured [project progress report](docs/short_report.md); it labels unmeasured GNN and localization work as pending.
+
+## Research question and hypothesis
+**Research question:** Does code-property-graph structure improve vulnerability detection on projects the model has never seen, especially after identifiers are abstracted?
+
+**Hypothesis:** AST, control-flow and data-flow structure may retain vulnerability signals that generalize better than project-specific identifier vocabulary. This is not established by the current baselines; full graph extraction and GNN evaluation remain pending.
 
 ## Problem
 Detect vulnerable C/C++ functions with a gated graph neural network over code property graphs (AST + control-flow + data-flow), localize the vulnerable lines, and evaluate on **projects the model has never seen**, against static-analysis and ML baselines.
@@ -17,7 +22,7 @@ BigVul (Fan et al., MSR 2020), authors' dataset mirrored at [`starsofchance/MSR_
 
 Cleaning removed 334 vulnerable rows whose fix only changes comments or whitespace; 2,602 rows in normalized-function groups with conflicting labels (including 1,274 vulnerable rows); 1,884 redundant normalized duplicates; and 1,716 functions longer than 8,000 characters (including 616 vulnerable rows).
 
-**Language:** BigVul's language tag says 98.6% C, but sampled rows include C++ code (class methods in Chrome, Android, KDE and others) tagged as C, so the dataset should be treated as C/C++.
+**Language:** BigVul's language tag says 98.6% C, but sampled rows include C++ code (class methods in Chrome, Android, KDE and others) tagged as C, so the dataset should be treated as C/C++. File extensions are selected heuristically from language tags and syntax; C++ markers inside comments can cause false `.cpp` classification.
 
 ![Cleaning funnel](results/figures/01_cleaning_funnel.png)
 
@@ -208,7 +213,9 @@ Compact graphs are written as JSONL under `data/graph_workset/graphs/`; per-func
 
 The independent audit checks that every planned uid has exactly one status, every successful status has exactly one JSONL graph, metadata and labels match the manifest, edge indices stay within the node list, and truncation counts agree. Use `--allow-partial` only to audit a limited smoke run; a full run should report `complete: true` and an empty `errors` list in `graphs/audit_summary.json`.
 
-The full workset runner and graph audit are prepared but have not produced full-scale extraction results. The pilot above is the available measured graph extraction evidence.
+The full workset runner and graph audit are prepared but have not produced full-scale extraction results. METHOD nodes are matched by uid in Joern's filename; when several candidates match, the largest AST subtree is selected, which may choose the wrong method in unusual nested/wrapper cases. The pilot above is the available measured graph extraction evidence.
+
+The planned PyG node-type vocabulary is built only from rows whose roles are `train` in both split definitions, without reading labels or test performance. Unseen node types map to `__UNK__`. Graphs are truncated to the first 500 AST nodes in breadth-first order; this can discard later code and its edges, so the full run must report truncation coverage by class and split.
 
 ### PyTorch Geometric graph features
 

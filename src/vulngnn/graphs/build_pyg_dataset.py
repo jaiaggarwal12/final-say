@@ -22,7 +22,8 @@ ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_INPUT = ROOT / "data/graph_workset/graphs"
 DEFAULT_OUTPUT = ROOT / "data/graph_dataset"
 MODEL_NAME = "microsoft/codebert-base"
-DATASET_SCHEMA_VERSION = 3
+DATASET_SCHEMA_VERSION = 4
+UNKNOWN_NODE_TYPE = "__UNK__"
 TOKEN = re.compile(r"[A-Za-z_]\w*|\d+|[^\s\w]")
 IDENTIFIER = re.compile(r"^[A-Za-z_]\w*$")
 COMMENTS = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
@@ -73,13 +74,19 @@ def sha256_file(path: Path) -> str:
 
 
 def node_type_vocab(paths: list[Path]) -> list[str]:
-    types = set()
+    """Learn the vocabulary only from rows train in both split definitions."""
+    types = {UNKNOWN_NODE_TYPE}
+    n_training_graphs = 0
     for path in paths:
         for graph in read_records(path):
+            if (graph.get("split_within") != "train"
+                    or graph.get("split_cross") != "train"):
+                continue
+            n_training_graphs += 1
             types.update(node.get("type", "") for node in graph.get("nodes", []))
     types.discard("")
-    if not types:
-        raise ValueError("No nodes found in graph JSONL inputs")
+    if n_training_graphs == 0 or len(types) == 1:
+        raise ValueError("No training graph node types found in graph JSONL inputs")
     return sorted(types)
 
 
@@ -112,7 +119,7 @@ def graph_to_data(graph: dict, embeddings: torch.Tensor,
     for idx, node in enumerate(nodes):
         node_type = node.get("type", "")
         if node_type not in type_vocab:
-            raise ValueError(f"Node type not present in vocabulary: {node_type!r}")
+            node_type = UNKNOWN_NODE_TYPE
         type_features[idx, type_vocab[node_type]] = 1
     x = torch.cat((type_features, embeddings), dim=1)
 
@@ -185,7 +192,8 @@ def main() -> None:
     output = args.out / variant
     output.mkdir(parents=True, exist_ok=True)
 
-    print("Building deterministic node-type vocabulary...", flush=True)
+    print("Building deterministic node-type vocabulary from rows that are train "
+          "in both split definitions...", flush=True)
     types = node_type_vocab(paths)
     type_vocab = {name: index for index, name in enumerate(types)}
     type_path = output / "node_type_vocab.json"
@@ -279,6 +287,8 @@ def main() -> None:
         "device": str(device), "masked_identifiers": args.mask_identifiers,
         "feature_variant": variant,
         "max_length": args.max_length, "node_type_vocab_sha256": type_hash,
+        "node_type_vocab_source": "split_within=train AND split_cross=train; labels not read",
+        "unknown_node_type": UNKNOWN_NODE_TYPE,
         "graphs": len(index_rows), "node_types": type_vocab,
         "edge_types": edge_vocab,
     }

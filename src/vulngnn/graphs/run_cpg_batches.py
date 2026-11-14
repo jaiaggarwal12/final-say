@@ -123,7 +123,7 @@ def resumable_batch(stats_path: Path, output_path: Path,
     """Return prior stats only if they cover this batch and its graph UIDs."""
     try:
         old = pd.read_csv(stats_path, dtype={"uid": str}, keep_default_na=False)
-        required = {"uid", "status", "max_nodes"}
+        required = {"uid", "status", "max_nodes", "failure_reason"}
         if not required.issubset(old.columns) or old["uid"].duplicated().any():
             return None
         if set(old["uid"]) != set(manifest["uid"].astype(str)):
@@ -197,6 +197,7 @@ def export_graphs(export_dir: Path, manifest: pd.DataFrame, output_jsonl: Path,
                 "nodes": 0, "original_nodes": 0, "nodes_dropped": 0, "edges": 0,
                 "max_nodes": max_nodes,
                 "truncated": False, "project_g": row.project_g, "vul": int(row.vul),
+                "failure_reason": "no non-external METHOD with matching source uid in FILENAME",
                 "split_within": row.split_within, "split_cross": row.split_cross,
                 "near_dup_cross": parse_bool(row.near_dup_cross),
                 "use_train_within": parse_bool(row.use_train_within),
@@ -260,6 +261,7 @@ def export_graphs(export_dir: Path, manifest: pd.DataFrame, output_jsonl: Path,
             }
             stream.write(json.dumps(graph, separators=(",", ":")) + "\n")
             record.update(status="ok_truncated" if graph["truncated"] else "ok",
+                          failure_reason="",
                           nodes=len(node_records), original_nodes=original_count,
                           nodes_dropped=graph["nodes_dropped"], truncated=graph["truncated"],
                           edges=len(edge_records))
@@ -314,45 +316,81 @@ def main() -> None:
 
     for i, (batch_id, batch_manifest) in enumerate(batches, start=1):
         batch_dir = args.workset / "batches" / f"batch_{int(batch_id):05d}"
-        log_path = log_dir / f"batch_{int(batch_id):05d}.log"
         output_path = graph_dir / f"batch_{int(batch_id):05d}.jsonl"
         stats_path = graph_dir / f"batch_{int(batch_id):05d}_stats.csv"
         print(f"[{i}/{len(batches)}] batch {int(batch_id):05d}: "
               f"{len(batch_manifest):,} functions", flush=True)
-        if args.resume and output_path.exists() and stats_path.exists():
-            old = resumable_batch(stats_path, output_path, batch_manifest,
-                                  args.max_nodes)
-            if old is not None:
+        prior_valid_stats = None
+        if output_path.exists() and stats_path.exists():
+            prior_valid_stats = resumable_batch(
+                stats_path, output_path, batch_manifest, args.max_nodes
+            )
+            if args.resume and prior_valid_stats is not None:
                 print("  resuming: validated prior outputs", flush=True)
-                all_stats.extend(old.to_dict("records"))
+                all_stats.extend(prior_valid_stats.to_dict("records"))
                 continue
-        ensure_batch_sources(batch_dir, batch_manifest, args.data.resolve())
-        shutil.rmtree(batch_dir / "export", ignore_errors=True)
-        (batch_dir / "cpg.bin").unlink(missing_ok=True)
+        attempts_dir = batch_dir / "attempts"
+        attempt_no = 1
+        while (attempts_dir / f"attempt_{attempt_no:03d}").exists():
+            attempt_no += 1
+        attempt_dir = attempts_dir / f"attempt_{attempt_no:03d}"
+        log_path = log_dir / f"batch_{int(batch_id):05d}_attempt_{attempt_no:03d}.log"
+        partial_output = graph_dir / (
+            f"batch_{int(batch_id):05d}_attempt_{attempt_no:03d}.partial.jsonl"
+        )
         try:
             with log_path.open("w") as log:
+                ensure_batch_sources(batch_dir, batch_manifest, args.data.resolve())
+                attempts_dir.mkdir(parents=True, exist_ok=True)
+                attempt_dir.mkdir()
+                (attempt_dir / "src").symlink_to(
+                    (batch_dir / "src").resolve(), target_is_directory=True
+                )
                 for cmd in ([str(parse), "src"],
                             [str(export), "--repr", "all", "--format", "neo4jcsv",
                              "--out", "export"]):
                     log.write("$ " + " ".join(cmd) + "\n")
                     log.flush()
-                    subprocess.run(cmd, cwd=batch_dir, stdout=log,
+                    subprocess.run(cmd, cwd=attempt_dir, stdout=log,
                                    stderr=subprocess.STDOUT, check=True)
-            stats = export_graphs(batch_dir / "export", batch_manifest,
-                                  output_path, args.max_nodes)
-            export_bytes = directory_size_bytes(batch_dir / "export")
+            stats = export_graphs(attempt_dir / "export", batch_manifest,
+                                  partial_output, args.max_nodes)
+            export_bytes = directory_size_bytes(attempt_dir / "export")
             print(f"  CSV export before cleanup: {export_bytes:,} bytes", flush=True)
-            # The compact JSONL/stats are sufficient for resume and audit. Keep
-            # raw CPG exports only when extraction fails, for diagnosis.
-            shutil.rmtree(batch_dir / "export", ignore_errors=True)
-            (batch_dir / "cpg.bin").unlink(missing_ok=True)
-        except (OSError, subprocess.CalledProcessError, ValueError) as exc:
+            # Replace a prior invalid/stale graph file only after the new
+            # conversion has completed successfully.
+            os.replace(partial_output, output_path)
+            # Keep raw CPG/CSV diagnostics on failed conversion. Only clean this
+            # successful attempt after compact graphs have been written.
+            shutil.rmtree(attempt_dir / "export", ignore_errors=True)
+            try:
+                (attempt_dir / "cpg.bin").unlink(missing_ok=True)
+                (attempt_dir / "src").unlink(missing_ok=True)
+                attempt_dir.rmdir()
+                if not any(attempts_dir.iterdir()):
+                    attempts_dir.rmdir()
+            except OSError:
+                # Conversion is already committed; leave any leftover temp
+                # files for diagnosis rather than changing the batch status.
+                pass
+        except Exception as exc:
             print(f"  FAILED: {exc}; see {log_path}", flush=True)
-            output_path.unlink(missing_ok=True)
-            stats = [{"uid": row.uid, "norm_hash": row.norm_hash,
+            try:
+                with log_path.open("a") as log:
+                    log.write(f"\nFAILED: {type(exc).__name__}: {exc}\n")
+            except OSError:
+                pass
+            partial_output.unlink(missing_ok=True)
+            if prior_valid_stats is not None:
+                # A failed forced retry must not make a previously valid graph
+                # contradict its batch coverage status.
+                stats = prior_valid_stats.to_dict("records")
+            else:
+                stats = [{"uid": row.uid, "norm_hash": row.norm_hash,
                       "project_g": row.project_g, "vul": int(row.vul),
                       "split_within": row.split_within, "split_cross": row.split_cross,
                       "near_dup_cross": parse_bool(row.near_dup_cross), "status": "batch_error",
+                      "failure_reason": f"{exc}; log={log_path}",
                       "max_nodes": args.max_nodes,
                       "use_train_within": parse_bool(row.use_train_within),
                       "use_train_cross": parse_bool(row.use_train_cross),
@@ -360,7 +398,7 @@ def main() -> None:
                       "use_eval_cross": parse_bool(row.use_eval_cross),
                       "nodes": 0, "original_nodes": 0, "nodes_dropped": 0,
                       "truncated": False, "edges": 0, "error": str(exc)}
-                     for row in batch_manifest.itertuples(index=False)]
+                         for row in batch_manifest.itertuples(index=False)]
         pd.DataFrame(stats).to_csv(stats_path, index=False)
         all_stats.extend(stats)
 

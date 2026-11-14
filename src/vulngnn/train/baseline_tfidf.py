@@ -70,50 +70,55 @@ def fit_tfidf(tr, va, te, ytr, yva, model_name, mask_identifiers=False):
     return best[2], ste, best[1]
 
 
-set_seed(42)
-df = pd.read_parquet(PATH).reset_index(drop=True)
-df["near_dup_cross"] = df["near_dup_cross"].astype(bool)
-print("tokenizing...", flush=True)
+def main():
+    set_seed(42)
+    df = pd.read_parquet(PATH).reset_index(drop=True)
+    df["near_dup_cross"] = df["near_dup_cross"].astype(bool)
+    print("tokenizing...", flush=True)
 
-results, score_frames = [], []
-for setting, col in SETTINGS.items():
-    tr, va, te = (df[df[col] == k] for k in ("train", "val", "test"))
-    if setting == "cross":  # decision: drop near-duplicate rows from cross-project eval
-        va, te = va[~va["near_dup_cross"]], te[~te["near_dup_cross"]]
-    ytr, yva, yte = (d["vul"].to_numpy() for d in (tr, va, te))
-    print(f"\n=== {setting}: train {len(tr):,} | val {len(va):,} | test {len(te):,}", flush=True)
+    results, score_frames = [], []
+    for setting, col in SETTINGS.items():
+        tr, va, te = (df[df[col] == k] for k in ("train", "val", "test"))
+        if setting == "cross":  # decision: drop near-duplicate rows from cross-project eval
+            va, te = va[~va["near_dup_cross"]], te[~te["near_dup_cross"]]
+        ytr, yva, yte = (d["vul"].to_numpy() for d in (tr, va, te))
+        print(f"\n=== {setting}: train {len(tr):,} | val {len(va):,} | test {len(te):,}", flush=True)
 
-    scored = {}  # model -> (val scores, test scores, chosen C)
+        scored = {}  # model -> (val scores, test scores, chosen C)
 
-    lm = make_pipeline(StandardScaler(), LogisticRegression(class_weight="balanced", max_iter=1000))
-    lm.fit(length_features(tr), ytr)
-    scored["length_only"] = (lm.predict_proba(length_features(va))[:, 1],
-                             lm.predict_proba(length_features(te))[:, 1], None)
+        lm = make_pipeline(StandardScaler(), LogisticRegression(class_weight="balanced", max_iter=1000))
+        lm.fit(length_features(tr), ytr)
+        scored["length_only"] = (lm.predict_proba(length_features(va))[:, 1],
+                                 lm.predict_proba(length_features(te))[:, 1], None)
 
-    scored["tfidf_logreg"] = fit_tfidf(
-        tr, va, te, ytr, yva, "tfidf_logreg", mask_identifiers=False)
-    scored["tfidf_masked_logreg"] = fit_tfidf(
-        tr, va, te, ytr, yva, "tfidf_masked_logreg", mask_identifiers=True)
+        scored["tfidf_logreg"] = fit_tfidf(
+            tr, va, te, ytr, yva, "tfidf_logreg", mask_identifiers=False)
+        scored["tfidf_masked_logreg"] = fit_tfidf(
+            tr, va, te, ytr, yva, "tfidf_masked_logreg", mask_identifiers=True)
 
-    for name, (sva, ste, C) in scored.items():
-        thr = best_f1_threshold(yva, sva)
-        cluster_col = "project_g" if setting == "cross" else "group"
-        res = summarize(yte, ste, thr,
-                        clusters=te[cluster_col].astype(str).to_numpy(), seed=42)
-        results.append({"setting": setting, "model": name, "chosen_C": C, **res})
-        score_frames.append(pd.DataFrame({
-            "setting": setting, "model": name,
-            "norm_hash": te["norm_hash"].astype(str).to_numpy(),
-            "project_g": te["project_g"].astype(str).to_numpy(),
-            "y": yte, "score": ste,
-        }))
+        for name, (sva, ste, C) in scored.items():
+            thr = best_f1_threshold(yva, sva)
+            cluster_col = "project_g" if setting == "cross" else "group"
+            res = summarize(yte, ste, thr,
+                            clusters=te[cluster_col].astype(str).to_numpy(), seed=42)
+            results.append({"setting": setting, "model": name, "chosen_C": C, **res})
+            score_frames.append(pd.DataFrame({
+                "setting": setting, "model": name,
+                "norm_hash": te["norm_hash"].astype(str).to_numpy(),
+                "project_g": te["project_g"].astype(str).to_numpy(),
+                "y": yte, "score": ste,
+            }))
 
-tab = pd.DataFrame(results)
-cols = ["setting", "model", "n", "positives", "prevalence", "ap", "ap_ci_low", "ap_ci_high",
-        "roc_auc", "p_at_r30", "p_at_r50", "precision", "recall", "f1"]
-print("\n" + tab[cols].round(3).to_string(index=False))
-tab.to_csv("results/baseline_results.csv", index=False)
-with open("results/baseline_results.json", "w") as f:
-    json.dump(results, f, indent=2)
-pd.concat(score_frames).to_parquet("results/baseline_scores.parquet", index=False)
-print("\nsaved results/baseline_results.csv, .json and baseline_scores.parquet")
+    tab = pd.DataFrame(results)
+    cols = ["setting", "model", "n", "positives", "prevalence", "ap", "ap_ci_low", "ap_ci_high",
+            "roc_auc", "p_at_r30", "p_at_r50", "precision", "recall", "f1"]
+    print("\n" + tab[cols].round(3).to_string(index=False))
+    tab.to_csv("results/baseline_results.csv", index=False)
+    with open("results/baseline_results.json", "w") as f:
+        json.dump(results, f, indent=2)
+    pd.concat(score_frames).to_parquet("results/baseline_scores.parquet", index=False)
+    print("\nsaved results/baseline_results.csv, .json and baseline_scores.parquet")
+
+
+if __name__ == "__main__":
+    main()

@@ -50,6 +50,7 @@ def main():
     required_coverage = {"uid", "norm_hash", "vul", "project_g", "split_within",
                          "split_cross", *SELECTION_COLUMNS, "status", "nodes",
                          "original_nodes", "nodes_dropped", "edges", "max_nodes", "truncated"}
+    required_coverage.add("failure_reason")
     if not required_manifest.issubset(manifest.columns):
         raise ValueError(f"Manifest missing columns: {sorted(required_manifest - set(manifest.columns))}")
     if not required_coverage.issubset(coverage.columns):
@@ -112,6 +113,8 @@ def main():
             if int(record["nodes"]) < 0 or int(record["edges"]) < 0:
                 add_error(f"{uid}: negative node or edge count")
             if record["status"] in SUCCESS:
+                if str(record.get("failure_reason", "")):
+                    add_error(f"{uid}: successful graph has a failure reason")
                 if int(record["nodes"]) < 1:
                     add_error(f"{uid}: successful graph has no nodes")
                 if int(record["original_nodes"]) < int(record["nodes"]):
@@ -120,8 +123,11 @@ def main():
                     add_error(f"{uid}: inconsistent nodes_dropped")
                 if as_bool(record["truncated"]) != (int(record["original_nodes"]) > int(record["max_nodes"])):
                     add_error(f"{uid}: inconsistent truncation flag")
-            elif int(record["nodes"]) != 0 or int(record["edges"]) != 0:
-                add_error(f"{uid}: failed graph status has nonzero nodes or edges")
+            else:
+                if not str(record.get("failure_reason", "")).strip():
+                    add_error(f"{uid}: failed function has no failure reason")
+                if int(record["nodes"]) != 0 or int(record["edges"]) != 0:
+                    add_error(f"{uid}: failed graph status has nonzero nodes or edges")
         except (KeyError, TypeError, ValueError) as exc:
             add_error(f"{uid}: malformed coverage row ({exc})")
 
