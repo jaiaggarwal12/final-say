@@ -8,6 +8,9 @@ can pass the default full-workset audit.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import io
+import json
 import os
 import re
 import shutil
@@ -25,29 +28,66 @@ def run(command: list[str], *, env: dict[str, str] | None = None) -> None:
 
 
 def make_archive(workset: Path, destination: Path) -> None:
-    """Bundle only compact graph outputs and audit metadata for download."""
+    """Bundle restartable compact outputs, logs, metadata, and integrity hashes."""
     if destination.exists():
         raise FileExistsError(
             f"Refusing to overwrite existing graph archive: {destination}; choose a new path"
         )
-    members = [workset / "manifest.csv", workset / "coverage_by_project.csv"]
+    members = [workset / "manifest.csv", workset / "coverage_by_project.csv",
+               workset / "workset_metadata.json"]
     graph_dir = workset / "graphs"
     members.extend(sorted(graph_dir.glob("*.jsonl")))
+    members.extend(sorted(graph_dir.glob("*.json")))
     members.extend(sorted(graph_dir.glob("*_stats.csv")))
+    members.extend(sorted(graph_dir.glob("batch_*.complete.json")))
     members.extend(path for path in (
         graph_dir / "coverage.csv",
         graph_dir / "coverage_by_project.csv",
+        graph_dir / "kaggle_coverage_by_class_extension.csv",
         graph_dir / "audit_coverage_by_project.csv",
         graph_dir / "audit_summary.json",
+        graph_dir / "stage_timings.csv",
     ) if path.exists())
+    members.extend(sorted((workset / "logs").glob("*.log")))
+    members = list(dict.fromkeys(members))
     missing = [str(path) for path in members if not path.is_file()]
     if missing:
         raise FileNotFoundError("Cannot archive; required outputs are missing: " + ", ".join(missing))
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(destination, "w:gz") as archive:
+    def sha256(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    checkpoint_manifest = {
+        "schema_version": 1,
+        "workset_manifest_sha256": sha256(workset / "manifest.csv"),
+        "workset_metadata_sha256": sha256(workset / "workset_metadata.json"),
+        "files": {
+            str(path.relative_to(workset)): {
+                "size": path.stat().st_size,
+                "sha256": sha256(path),
+            }
+            for path in members
+        },
+    }
+    temporary = destination.with_name(destination.name + ".partial")
+    with tarfile.open(temporary, "w:gz", compresslevel=1) as archive:
         for path in members:
             archive.add(path, arcname=path.relative_to(workset))
-    print(f"Graph bundle: {destination} ({destination.stat().st_size:,} bytes)", flush=True)
+        info = tarfile.TarInfo("checkpoint_manifest.json")
+        payload = (json.dumps(checkpoint_manifest, indent=2) + "\n").encode()
+        info.size = len(payload)
+        archive.addfile(info, io.BytesIO(payload))
+    os.replace(temporary, destination)
+    checksum_path = destination.with_name(destination.name + ".sha256")
+    checksum_tmp = checksum_path.with_name(checksum_path.name + ".partial")
+    checksum_tmp.write_text(f"{sha256(destination)}  {destination.name}\n")
+    os.replace(checksum_tmp, checksum_path)
+    print(f"Graph checkpoint: {destination} ({destination.stat().st_size:,} bytes)", flush=True)
+    print(f"Checkpoint checksum: {checksum_path}", flush=True)
 
 
 def main() -> None:

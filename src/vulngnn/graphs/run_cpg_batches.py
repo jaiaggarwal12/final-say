@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
+import time
 from collections import Counter, defaultdict, deque
 from pathlib import Path
 
@@ -118,38 +120,133 @@ def ensure_batch_sources(batch_dir: Path, batch: pd.DataFrame, data_path: Path) 
     print(f"  restored {len(missing):,} missing source files from parquet", flush=True)
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def batch_completion_path(stats_path: Path) -> Path:
+    return stats_path.with_name(stats_path.name.replace("_stats.csv", ".complete.json"))
+
+
 def resumable_batch(stats_path: Path, output_path: Path,
                     manifest: pd.DataFrame, max_nodes: int) -> pd.DataFrame | None:
-    """Return prior stats only if they cover this batch and its graph UIDs."""
+    """Return prior stats only when marker hashes and all manifest fields agree."""
     try:
+        marker_path = batch_completion_path(stats_path)
+        marker = json.loads(marker_path.read_text())
+        if marker.get("schema_version") != 1 or marker.get("max_nodes") != max_nodes:
+            return None
+        expected_uid_sha256 = hashlib.sha256(
+            "\n".join(sorted(manifest["uid"].astype(str))).encode()
+        ).hexdigest()
+        if marker.get("manifest_uid_sha256") != expected_uid_sha256:
+            return None
+        if marker.get("stats_sha256") != sha256_file(stats_path):
+            return None
+        if marker.get("graphs_sha256") != sha256_file(output_path):
+            return None
         old = pd.read_csv(stats_path, dtype={"uid": str}, keep_default_na=False)
-        required = {"uid", "status", "max_nodes", "failure_reason"}
+        required = {"uid", "status", "max_nodes", "failure_reason", "norm_hash",
+                    "project_g", "vul", "split_within", "split_cross",
+                    "near_dup_cross", "use_train_within", "use_train_cross",
+                    "use_eval_within", "use_eval_cross"}
         if not required.issubset(old.columns) or old["uid"].duplicated().any():
             return None
         if set(old["uid"]) != set(manifest["uid"].astype(str)):
             return None
         if not old["max_nodes"].astype(int).eq(max_nodes).all():
             return None
-        if old["status"].eq("batch_error").any():
+        if not old["status"].isin({"ok", "ok_truncated", "no_method"}).all():
             return None
+        expected = manifest.set_index("uid")
+        old_indexed = old.set_index("uid")
+        for field in ("norm_hash", "project_g", "split_within", "split_cross", "vul"):
+            if not old_indexed[field].astype(str).equals(expected[field].astype(str)):
+                return None
+        for field in ("near_dup_cross", "use_train_within", "use_train_cross",
+                      "use_eval_within", "use_eval_cross"):
+            old_values = old_indexed[field].map(parse_bool)
+            expected_values = expected[field].map(parse_bool)
+            if not old_values.equals(expected_values):
+                return None
         expected_graph_uids = set(old.loc[
             old["status"].isin(["ok", "ok_truncated"]), "uid"
         ])
         graph_uids = set()
+        graph_count = 0
         with output_path.open() as stream:
             for line in stream:
                 if not line.strip():
-                    continue
+                    return None
                 graph = json.loads(line)
                 uid = str(graph.get("uid", ""))
                 if not uid or uid in graph_uids:
                     return None
+                if graph.get("max_nodes") != max_nodes:
+                    return None
+                if uid not in expected.index:
+                    return None
+                plan = expected.loc[uid]
+                record = old_indexed.loc[uid]
+                for field in ("norm_hash", "project_g", "split_within", "split_cross"):
+                    if str(graph.get(field)) != str(plan[field]):
+                        return None
+                if int(graph.get("label", -1)) != int(plan["vul"]):
+                    return None
+                if any(parse_bool(graph.get(field)) != parse_bool(plan[field]) for field in (
+                        "near_dup_cross", "use_train_within", "use_train_cross",
+                        "use_eval_within", "use_eval_cross")):
+                    return None
+                if (len(graph.get("nodes", [])) != int(record["nodes"]) or
+                        len(graph.get("edges", [])) != int(record["edges"]) or
+                        bool(graph.get("truncated")) != parse_bool(record["truncated"])):
+                    return None
                 graph_uids.add(uid)
+                graph_count += 1
         if graph_uids != expected_graph_uids:
             return None
+        if marker.get("function_count") != len(manifest) or marker.get("graph_count") != graph_count:
+            return None
         return old
-    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError, AttributeError):
         return None
+
+
+def write_completion_marker(stats_path: Path, output_path: Path,
+                            manifest: pd.DataFrame, max_nodes: int) -> None:
+    """Commit hashes last; missing/stale markers force a safe rerun."""
+    with output_path.open() as stream:
+        graph_count = sum(1 for line in stream if line.strip())
+    marker = {
+        "schema_version": 1,
+        "function_count": len(manifest),
+        "graph_count": graph_count,
+        "max_nodes": max_nodes,
+        "manifest_uid_sha256": hashlib.sha256(
+            "\n".join(sorted(manifest["uid"].astype(str))).encode()
+        ).hexdigest(),
+        "stats_sha256": sha256_file(stats_path),
+        "graphs_sha256": sha256_file(output_path),
+    }
+    marker_path = batch_completion_path(stats_path)
+    temporary = marker_path.with_suffix(marker_path.suffix + ".partial")
+    temporary.write_text(json.dumps(marker, indent=2) + "\n")
+    os.replace(temporary, marker_path)
+
+
+def require_deterministic_replay(existing_path: Path, candidate_path: Path) -> None:
+    """Refuse to replace a validated batch if a forced rerun changes its bytes."""
+    old_hash = sha256_file(existing_path)
+    new_hash = sha256_file(candidate_path)
+    if old_hash != new_hash:
+        raise RuntimeError(
+            "deterministic replay changed a previously validated graph file; "
+            f"preserving prior output (old={old_hash}, new={new_hash})"
+        )
 
 
 def export_graphs(export_dir: Path, manifest: pd.DataFrame, output_jsonl: Path,
@@ -215,6 +312,14 @@ def export_graphs(export_dir: Path, manifest: pd.DataFrame, output_jsonl: Path,
             selected_ids = full_order[:max_nodes]
             keep = set(selected_ids)
             local = {node_id: index for index, node_id in enumerate(selected_ids)}
+            source_filenames = sorted({
+                rows[node_id].get("FILENAME", "")
+                for node_id in selected_ids
+                if rows[node_id].get("FILENAME", "")
+            })
+            selected_node_types = sorted({
+                rows[node_id].get("node_type", "") for node_id in selected_ids
+            })
             node_records = []
             for node_id in selected_ids:
                 node = rows[node_id]
@@ -264,7 +369,10 @@ def export_graphs(export_dir: Path, manifest: pd.DataFrame, output_jsonl: Path,
                           failure_reason="",
                           nodes=len(node_records), original_nodes=original_count,
                           nodes_dropped=graph["nodes_dropped"], truncated=graph["truncated"],
-                          edges=len(edge_records))
+                          edges=len(edge_records),
+                          source_filenames=json.dumps(source_filenames),
+                          node_types=json.dumps(selected_node_types),
+                          method_name=graph["method"])
             stats.append(record)
     return stats
 
@@ -309,6 +417,7 @@ def main() -> None:
             parser.error("limit-batches must be positive")
         batches = batches[:args.limit_batches]
     all_stats = []
+    stage_timings = []
     graph_dir = args.workset / "graphs"
     log_dir = args.workset / "logs"
     graph_dir.mkdir(parents=True, exist_ok=True)
@@ -318,6 +427,18 @@ def main() -> None:
         batch_dir = args.workset / "batches" / f"batch_{int(batch_id):05d}"
         output_path = graph_dir / f"batch_{int(batch_id):05d}.jsonl"
         stats_path = graph_dir / f"batch_{int(batch_id):05d}_stats.csv"
+        batch_started = time.perf_counter()
+        timing = {
+            "batch_id": int(batch_id),
+            "functions": len(batch_manifest),
+            "status": "batch_error",
+            "parse_seconds": None,
+            "export_seconds": None,
+            "conversion_seconds": None,
+            "batch_seconds": None,
+            "csv_export_bytes": None,
+            "compact_graph_bytes": None,
+        }
         print(f"[{i}/{len(batches)}] batch {int(batch_id):05d}: "
               f"{len(batch_manifest):,} functions", flush=True)
         prior_valid_stats = None
@@ -328,6 +449,8 @@ def main() -> None:
             if args.resume and prior_valid_stats is not None:
                 print("  resuming: validated prior outputs", flush=True)
                 all_stats.extend(prior_valid_stats.to_dict("records"))
+                timing.update(status="resumed", batch_seconds=0.0)
+                stage_timings.append(timing)
                 continue
         attempts_dir = batch_dir / "attempts"
         attempt_no = 1
@@ -346,17 +469,27 @@ def main() -> None:
                 (attempt_dir / "src").symlink_to(
                     (batch_dir / "src").resolve(), target_is_directory=True
                 )
-                for cmd in ([str(parse), "src"],
-                            [str(export), "--repr", "all", "--format", "neo4jcsv",
-                             "--out", "export"]):
+                commands = (
+                    ("parse", [str(parse), "--language", "c", "src"]),
+                    ("export", [str(export), "--repr", "all", "--format",
+                                 "neo4jcsv", "--out", "export"]),
+                )
+                for stage, cmd in commands:
                     log.write("$ " + " ".join(cmd) + "\n")
                     log.flush()
+                    stage_started = time.perf_counter()
                     subprocess.run(cmd, cwd=attempt_dir, stdout=log,
                                    stderr=subprocess.STDOUT, check=True)
+                    timing[f"{stage}_seconds"] = time.perf_counter() - stage_started
+            conversion_started = time.perf_counter()
             stats = export_graphs(attempt_dir / "export", batch_manifest,
                                   partial_output, args.max_nodes)
+            timing["conversion_seconds"] = time.perf_counter() - conversion_started
             export_bytes = directory_size_bytes(attempt_dir / "export")
+            timing["csv_export_bytes"] = export_bytes
             print(f"  CSV export before cleanup: {export_bytes:,} bytes", flush=True)
+            if prior_valid_stats is not None:
+                require_deterministic_replay(output_path, partial_output)
             # Replace a prior invalid/stale graph file only after the new
             # conversion has completed successfully.
             os.replace(partial_output, output_path)
@@ -373,6 +506,8 @@ def main() -> None:
                 # Conversion is already committed; leave any leftover temp
                 # files for diagnosis rather than changing the batch status.
                 pass
+            timing["compact_graph_bytes"] = output_path.stat().st_size
+            timing["status"] = "complete"
         except Exception as exc:
             print(f"  FAILED: {exc}; see {log_path}", flush=True)
             try:
@@ -399,11 +534,22 @@ def main() -> None:
                       "nodes": 0, "original_nodes": 0, "nodes_dropped": 0,
                       "truncated": False, "edges": 0, "error": str(exc)}
                          for row in batch_manifest.itertuples(index=False)]
+        timing["batch_seconds"] = time.perf_counter() - batch_started
+        stage_timings.append(timing)
+        print(
+            "  stage seconds: "
+            f"parse={timing['parse_seconds']} export={timing['export_seconds']} "
+            f"conversion={timing['conversion_seconds']} batch={timing['batch_seconds']:.3f}",
+            flush=True,
+        )
         pd.DataFrame(stats).to_csv(stats_path, index=False)
+        if timing["status"] == "complete":
+            write_completion_marker(stats_path, output_path, batch_manifest, args.max_nodes)
         all_stats.extend(stats)
 
     summary = pd.DataFrame(all_stats)
     summary.to_csv(graph_dir / "coverage.csv", index=False)
+    pd.DataFrame(stage_timings).to_csv(graph_dir / "stage_timings.csv", index=False)
     coverage_parts = []
     for setting, split_col in (("within", "split_within"), ("cross", "split_cross")):
         for role in ("train", "val", "test"):

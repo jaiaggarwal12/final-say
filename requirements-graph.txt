@@ -1,0 +1,4 @@
+# CPU graph-workset planning, parquet input, Joern export conversion, and audit.
+# Python 3.11+; no PyTorch or CUDA packages are needed for extraction.
+pandas==3.0.6
+pyarrow==26.0.0

@@ -170,50 +170,39 @@ Graph workset planning (safe to run on the laptop; does not write source files):
 source .venv/bin/activate
 PYTHONPATH=src python -m vulngnn.graphs.prepare_graph_workset --plan-only
 ```
-The planner code selects vulnerable functions, eligible validation/test rows (excluding cross-project near-duplicates), and a seeded sample of safe training functions. Full workset counts have not been recorded as a results artifact, and full Joern extraction has not run. Review a fresh read-only plan before materializing it. Full source-file generation and Joern extraction should run on Kaggle. To materialize the workset there, run `PYTHONPATH=src python -m vulngnn.graphs.prepare_graph_workset --negative-ratio 5 --batch-size 1000`.
+The planner selects vulnerable functions, eligible validation/test rows (excluding cross-project near-duplicates), and a seeded sample of safe training functions. The recorded full workset has 117,673 functions in 59 batches of 2,000; its manifest and project coverage table are in `results/graph_throughput_2k/full_workset_batch2000/`. Full Joern extraction has not run. A 2,000-function seed-42 throughput sample is documented below.
 
-The processed data and Joern installation are excluded from Git. Package those inputs together with the reviewed graph-pipeline source for a private Kaggle Dataset upload with:
+The processed data and Joern installation are excluded from Git. Package those inputs together with the reviewed graph-pipeline and checkpoint tools for a private Kaggle Dataset upload with:
 ```bash
 .venv/bin/python scripts/package_kaggle_inputs.py \
-  --output /private/tmp/gnn-vulnerability-kaggle-inputs.tar.gz
-ls -lh /private/tmp/gnn-vulnerability-kaggle-inputs.tar.gz
+  --joern-dir /private/tmp/joern-cli-linux-x86_64-v4.0.665/joern-cli \
+  --workset-dir results/graph_throughput_2k/full_workset_batch2000 \
+  --output /private/tmp/vulngnn-phase2b-kaggle-v4.tar.gz
+ls -lh /private/tmp/vulngnn-phase2b-kaggle-v4.tar.gz
+shasum -a 256 /private/tmp/vulngnn-phase2b-kaggle-v4.tar.gz
 ```
-The archive contains `data/processed/bigvul_clean.parquet`, `tools/joern/joern-cli`, `src/`, and `scripts/run_graph_pipeline.py`. Upload the archive as a private Kaggle Dataset, attach it to a CPU notebook, enable Internet, then extract it under `/kaggle/working/gnn`:
-```bash
-mkdir -p /kaggle/working/gnn
-tar -xzf /kaggle/input/<dataset-slug>/gnn-vulnerability-kaggle-inputs.tar.gz \
-  -C /kaggle/working/gnn
-export PROJECT=/kaggle/working/gnn
-export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
-java -version
-```
+The earlier `/private/tmp/vulngnn-phase2b-inputs-batch2000.tar.gz` archive bundled macOS Joern binaries and must not be used on Kaggle. The Linux x86_64 Joern 4.0.665 package used in the smoke run was 1,913,587,851 bytes (SHA-256 `16427a07f97b021fdb48897b527029648b9a1c50ee5d3c1714c1526e3a942564`); it contains the processed parquet, extraction source, requirements, and 117,673-row manifest. The latest verified Kaggle CPU smoke (notebook version 4, 2026-11-16) ran only batch `00000` (2,000 functions) on Linux x86_64 with 4 CPUs, Python 3.13.18, pandas 2.3.3, PyArrow 23.0.1, OpenJDK 21.0.12, and Joern 4.0.665. It produced 1,830 graphs (1,797 `ok`, 33 `ok_truncated`), 170 `no_method`, and zero `batch_error`; safe coverage was 1,686/1,842 (91.3%) and vulnerable coverage was 144/158 (91.1%). Measured stage times were parse 25.829 s, export 7.216 s, conversion 12.481 s, and batch 46.629 s. Process-tree peak RSS sampled every 250 ms was 1,217.13 MiB. A seeded 20-graph integrity sample passed; resume validated and skipped the completed batch, preserving graph JSONL SHA-256 `53524c780bbb89df3db8eeb316155b61a3692bce5f2d26f344d27cc7cd7f974d`. The checkpoint archive SHA-256 is `eb0dfe380f7340b46da8f17cf8f4f75c23b4f20b242ab7518a1c97cfc3d04039`. The archive and `.sha256` sidecar were downloaded to `~/Downloads`, verified and restored into a clean temporary workset; Kaggle session was then stopped and the local archive was reverified. This verifies one-batch compatibility and checkpoint recovery only; it is not full-workset extraction evidence. The [checked-in Kaggle notebook](notebooks/phase2b_kaggle_graph_extraction.ipynb) defaults to one batch and documents the checkpoint restore path and chunk procedure.
 
-If `java -version` is not Java 21, install it while Internet is enabled, then set `JAVA_HOME` to that installation. The pack already contains the reviewed source, so no separate checkout is needed. Start with one batch:
-```bash
-sudo apt-get update && sudo apt-get install -y openjdk-21-jdk-headless
-export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
-java -version
-cd "$PROJECT"
-python scripts/run_graph_pipeline.py \
-  --data "$PROJECT/data/processed/bigvul_clean.parquet" \
-  --joern-dir "$PROJECT/tools/joern/joern-cli" \
-  --java-home "$JAVA_HOME" \
-  --workset "$PROJECT/data/graph_workset" \
-  --limit-batches 1 \
-  --archive /kaggle/working/graphs-partial.tar.gz
-```
-If the smoke audit is clean, rerun the command without `--limit-batches` and set `--archive /kaggle/working/graphs-full.tar.gz`. The full-workset extrapolation is about 74–77 minutes, within Kaggle's documented 12-hour CPU session, so plan for one session and leave time for the audit and packaging. To resume in a fresh session, attach both the original inputs Dataset and the prior notebook output Dataset, then run:
-```bash
-mkdir -p "$PROJECT/data/graph_workset"
-tar -xzf /kaggle/input/<resume-dataset-slug>/graphs-partial.tar.gz \
-  -C "$PROJECT/data/graph_workset"
-```
-Rerun the full pipeline command above. Completed batches are validated and skipped; missing source snippets for unfinished batches are rebuilt from the attached parquet. Keep the compact archive under `/kaggle/working` so Kaggle saves it as notebook output.
+A refreshed upload bundle was built from the current worktree at `/private/tmp/vulngnn-phase2b-kaggle-v4.tar.gz`: 1,913,591,909 bytes, SHA-256 `c13c5587d2bd6249aa3481cdb4de868d50588bdc2ba8749dbecdc8ed22ff314f`. It includes `restore_graph_checkpoint.py`, the updated pipeline and the full workset manifest/metadata. This exact package was uploaded as a private Kaggle Dataset, checked against its SHA-256 inside Kaggle, and used in the notebook version 4 one-batch smoke. Rebuild it with the command above and repeat the hash check after any packaged input changes.
+
+### Kaggle persistence and chunk recovery
+
+Kaggle showed **No persistence** for the smoke session. Treat `/kaggle/working` as ephemeral: stopping, expiring, or resetting a session can delete the workset, compact graphs, metadata, and logs. A clean one-batch run took about 50 seconds. The local 2,000-function measurement suggests about 42.4 minutes for 59 batches, 5.13 GB cumulative temporary CSV output, and 1.71 GB compact JSONL output; these are linear estimates, not guarantees. Plan for at least 8 GB free working storage for the extracted input copy, active batch scratch, compact output, logs, and a compressed checkpoint, and verify the actual disk meter before each chunk.
+
+Before launching any full extraction, rebuild and upload the private input Dataset from the current worktree so it includes the integrity marker and `restore_graph_checkpoint.py` support. Use CPU, attach the private input Dataset, and leave the notebook `BATCH_LIMIT = 1` for a smoke rerun. For the full run only after reviewing this smoke and package version, set cumulative limits to 10, 20, 30, 40, 50, and 59. Prefix 10 revalidates and skips tested batch `00000`, then runs `00001`–`00009`; each next prefix processes only its new suffix after validating prior batches. Each run produces a versioned `graphs-through-*.tar.gz` plus `.sha256` file under `/kaggle/working`. Verify the sidecar, then download both files or save them as a private Kaggle output Dataset version **before stopping the session**. “Save Version” must finish and expose the artifacts, or keep a verified local download. On a fresh session attach exactly one latest checkpoint Dataset and the original inputs Dataset; the notebook verifies the archive hash, its per-file hashes, and exact manifest/metadata identity before restoring. Restore refuses conflicting or extra completed-batch files already in the workset; use a fresh workset or remove only the conflicting batch files before retrying. Missing source snippets for unfinished batches are reconstructed from the original parquet. If verification fails, do not resume from that archive: use the previous verified checkpoint and retain the corrupt one for diagnosis. A batch is skipped only when its completion marker, graph JSONL, stats CSV, manifest fields, and recorded SHA-256 hashes validate. A changed, missing, or mismatched artifact is rerun and replaced only after conversion succeeds.
+
+The working tree for a Kaggle session is `/kaggle/working/graph_workset/`: the immutable selection files are at its root; Joern input snippets and failed attempt scratch are under `batches/batch_NNNNN/`; compact graph JSONL, per-function stats, completion markers, aggregate coverage, audits, metrics, and quality checks are under `graphs/`; and runner/resume logs are under `logs/`. The restart archive includes these graph outputs and logs, but deliberately omits source snippets and failed raw Joern scratch. The notebook can re-read only its small seeded quality sample from the source parquet after restoring a checkpoint. The archive and checksum sidecar are written at `/kaggle/working/graphs-through-<prefix>-<timestamp>.tar.gz[.sha256]`.
+
+The private Kaggle notebook was saved as version 4 with Quick Save after the successful one-batch run; the saved version showed the `.tar.gz.bin` package hash guard and `BATCH_LIMIT = 1`. The package archive SHA-256 was checked inside Kaggle before extraction. The one-batch checkpoint recovery procedure was also verified locally after the Kaggle session stopped. Before any full run, rebuild the private Linux x86_64 input Dataset from the current worktree using the command above, compare its SHA-256 with the printed value, attach it with CPU, and use the reviewed notebook. For full extraction, retain the packaged dependency pins. Do not start the next prefix until the previous prefix has a zero-error audit, a verified archive and sidecar, and a durable Kaggle output Dataset version or local download. If a run stops mid-prefix, reattach the last verified checkpoint and rerun that same cumulative prefix; integrity markers cause only fully validated batches to be skipped.
+
+### 2,000-function Joern throughput sample
+
+On the local Java 21 environment, one 2,000-function Joern batch (1,863 safe, 137 vulnerable; 1,098 C and 902 C++; 167 projects) produced 1,823 graphs (91.15%); 177 had no matching method and 34 successful graphs were truncated at 500 nodes. Parse/export/conversion took 23.572/4.570/13.779 seconds; runner wall time was 42.436 seconds and measured wall time including startup was 43.227 seconds. Peak runner-process-tree RSS sampled every 250 ms was 1,399.17 MiB. The CSV export was 87,213,654 bytes before cleanup; compact graphs were 29,112,576 bytes. A repeat with the same batch size produced identical successful graph objects; comparison to two 1,000-function batches showed small node/edge differences in four graphs, so keep batch size fixed. The 20 source/graph quality-check sample was unchanged in the 2,000-batch output, and the pipeline resume smoke skipped the completed batch and passed audit. Full-workset linear estimates are about 42.4 minutes, 5.13 GB cumulative temporary CSV, and 1.71 GB compact graphs; full-run time and peak RAM are not measured. See [`results/graph_throughput_2k/`](results/graph_throughput_2k/) and [`docs/decisions.md`](docs/decisions.md) for coverage by class/extension, failure analysis, assumptions, and Kaggle constraints.
 Compact graphs are written as JSONL under `data/graph_workset/graphs/`; per-function and aggregated project/split/class parse coverage is written alongside them. Graphs larger than 500 nodes retain the first 500 nodes in deterministic AST breadth-first order and record the original count and dropped-node count. Only AST, CFG, REACHING_DEF and CDG edges are kept.
 
 The independent audit checks that every planned uid has exactly one status, every successful status has exactly one JSONL graph, metadata and labels match the manifest, edge indices stay within the node list, and truncation counts agree. Use `--allow-partial` only to audit a limited smoke run; a full run should report `complete: true` and an empty `errors` list in `graphs/audit_summary.json`.
 
-The full workset runner and graph audit are prepared but have not produced full-scale extraction results. METHOD nodes are matched by uid in Joern's filename; when several candidates match, the largest AST subtree is selected, which may choose the wrong method in unusual nested/wrapper cases. The pilot above is the available measured graph extraction evidence.
+The full workset runner and graph audit are prepared but have not produced full-scale extraction results. METHOD nodes are matched by uid in Joern's filename; when several candidates match, the largest AST subtree is selected, which may choose the wrong method in unusual nested/wrapper cases. The 2,000-function sample above is the measured throughput evidence, not a full-run coverage guarantee.
 
 The planned PyG node-type vocabulary is built only from rows whose roles are `train` in both split definitions, without reading labels or test performance. Unseen node types map to `__UNK__`. Graphs are truncated to the first 500 AST nodes in breadth-first order; this can discard later code and its edges, so the full run must report truncation coverage by class and split.
 

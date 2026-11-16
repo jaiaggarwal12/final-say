@@ -1,0 +1,54 @@
+{
+  "sample_functions": 2000,
+  "unique_norm_hash": 2000,
+  "vulnerable": 137,
+  "safe": 1863,
+  "extension_counts": {
+    ".c": 1098,
+    ".cpp": 902
+  },
+  "projects": 167,
+  "batch_size": 1000,
+  "batches": 2,
+  "max_nodes": 500,
+  "success_graphs": 1823,
+  "failed_extractions": 177,
+  "no_method": 177,
+  "batch_errors_final": 0,
+  "truncated_graphs": 34,
+  "parse_seconds": 21.654518791940063,
+  "export_seconds": 6.39221791602904,
+  "conversion_seconds": 13.735251041944139,
+  "runner_wall_seconds": 42.52878941700328,
+  "measured_wall_including_startup_seconds": 43.323428290954325,
+  "csv_export_bytes_before_cleanup": 88249866,
+  "compact_graph_bytes": 29113293,
+  "peak_process_tree_rss_mib": 1009.953125,
+  "peak_rss_method": "sampled sum of ps RSS for runner and descendants; 250 ms sampling",
+  "process_tree_sampling_interval_seconds": 0.25,
+  "nodes_dropped_total": 5538,
+  "audit": {
+    "planned_functions": 2000,
+    "audited_functions": 2000,
+    "complete": true,
+    "successful_graphs": 1823,
+    "selected_functions_with_batch_error": 0,
+    "error_count": 0,
+    "overall_graph_coverage": 0.9115,
+    "successful_graphs_truncated": 34,
+    "nodes_dropped_total": 5538,
+    "status_by_label": {
+      "0": {
+        "no_method": 167,
+        "ok": 1673,
+        "ok_truncated": 23
+      },
+      "1": {
+        "no_method": 10,
+        "ok": 116,
+        "ok_truncated": 11
+      }
+    },
+    "errors": []
+  }
+}

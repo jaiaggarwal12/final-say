@@ -1,0 +1,5 @@
+class,extension,functions,graphs,coverage
+Safe,C,1035,938,0.9062801932367149
+Safe,C++,828,758,0.9154589371980676
+Vulnerable,C,63,61,0.9682539682539683
+Vulnerable,C++,74,66,0.8918918918918919

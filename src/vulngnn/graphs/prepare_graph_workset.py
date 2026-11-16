@@ -7,6 +7,8 @@ training rows. Source files are written once per unique norm_hash.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -24,6 +26,11 @@ CPP_HINT = re.compile(
     r"override|final|dynamic_cast|static_cast|reinterpret_cast|const_cast)\b"
 )
 SPLITS = {"within": "split_within", "cross": "split_cross"}
+MANIFEST_COLUMNS = [
+    "uid", "norm_hash", "ext", "batch_id", "vul", "project_g", "commit_id",
+    "CVE ID", "CWE ID", "split_within", "split_cross", "near_dup_cross",
+    "use_train_within", "use_train_cross", "use_eval_within", "use_eval_cross",
+]
 
 
 def source_ext(code: str, lang: str) -> str:
@@ -95,7 +102,11 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--plan-only", action="store_true",
                         help="print workset size and coverage without writing files")
+    parser.add_argument("--manifest-only", action="store_true",
+                        help="write a compact manifest and coverage without source files")
     args = parser.parse_args()
+    if args.plan_only and args.manifest_only:
+        parser.error("--plan-only and --manifest-only are mutually exclusive")
     if args.negative_ratio < 0 or args.batch_size < 1:
         parser.error("negative ratio must be nonnegative and batch size must be positive")
 
@@ -127,6 +138,29 @@ def main() -> None:
             )
 
     args.out.mkdir(parents=True, exist_ok=True)
+    if args.manifest_only:
+        work[MANIFEST_COLUMNS].to_csv(args.out / "manifest.csv", index=False)
+        coverage.to_csv(args.out / "coverage_by_project.csv", index=False)
+        digest = hashlib.sha256()
+        with args.data.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        metadata = {
+            "seed": args.seed,
+            "negative_ratio": args.negative_ratio,
+            "batch_size": args.batch_size,
+            "functions": len(work),
+            "projects": int(work["project_g"].nunique()),
+            "source_parquet_sha256": digest.hexdigest(),
+            "selection": "plan_workset; no source files written; run_cpg_batches restores missing sources from parquet",
+            "source_extension_rule": "lang in {CPP,C++} or CPP_HINT syntax in prepare_graph_workset.py",
+        }
+        (args.out / "workset_metadata.json").write_text(
+            json.dumps(metadata, indent=2) + "\n"
+        )
+        print(f"\nwrote compact manifest and coverage without source files to {args.out}")
+        return
+
     work.to_csv(args.out / "manifest.csv", index=False)
     coverage.to_csv(args.out / "coverage_by_project.csv", index=False)
     for batch_id, batch in work.groupby("batch_id", sort=True):
