@@ -16,7 +16,6 @@ from pathlib import Path
 import torch
 from torch_geometric.data import Data
 from torch.utils.data import Dataset as TorchDataset
-from transformers import AutoModel, AutoTokenizer
 
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_INPUT = ROOT / "data/graph_workset/graphs"
@@ -59,7 +58,7 @@ def choose_device(requested: str) -> torch.device:
 
 
 def read_records(path: Path):
-    with path.open() as stream:
+    with path.open(encoding="utf-8") as stream:
         for line in stream:
             if line.strip():
                 yield json.loads(line)
@@ -179,6 +178,8 @@ def main() -> None:
                         help="maximum CodeBERT subword tokens per node")
     parser.add_argument("--mask-identifiers", action="store_true",
                         help="replace non-keyword identifiers with IDENT before encoding")
+    parser.add_argument("--type-only", action="store_true",
+                        help="build a Joern structure-only ablation without CodeBERT")
     parser.add_argument("--resume", action="store_true",
                         help="skip input shards with valid existing output files")
     args = parser.parse_args()
@@ -188,7 +189,10 @@ def main() -> None:
     paths = sorted(args.input.glob("batch_*.jsonl"))
     if not paths:
         raise SystemExit(f"No batch_*.jsonl files found under {args.input}")
-    variant = "codebert_masked" if args.mask_identifiers else "codebert_raw"
+    if args.type_only and args.mask_identifiers:
+        parser.error("--type-only cannot be combined with --mask-identifiers")
+    variant = ("joern_type_only" if args.type_only else
+               "codebert_masked" if args.mask_identifiers else "codebert_raw")
     output = args.out / variant
     output.mkdir(parents=True, exist_ok=True)
 
@@ -201,11 +205,19 @@ def main() -> None:
     type_hash = hashlib.sha256(type_path.read_bytes()).hexdigest()
 
     device = choose_device(args.device)
-    print(f"Device: {device}; encoder: {args.model}; node types: {len(types)}", flush=True)
-    tokenizer = AutoTokenizer.from_pretrained(args.model, revision=args.revision)
-    model = AutoModel.from_pretrained(args.model, revision=args.revision).to(device).eval()
-    resolved_revision = (getattr(model.config, "_commit_hash", None) or
-                         tokenizer.init_kwargs.get("_commit_hash"))
+    if args.type_only:
+        print(f"Device: {device}; encoder: none (Joern node types only); "
+              f"node types: {len(types)}", flush=True)
+        tokenizer = model = None
+        resolved_revision = None
+    else:
+        from transformers import AutoModel, AutoTokenizer
+
+        print(f"Device: {device}; encoder: {args.model}; node types: {len(types)}", flush=True)
+        tokenizer = AutoTokenizer.from_pretrained(args.model, revision=args.revision)
+        model = AutoModel.from_pretrained(args.model, revision=args.revision).to(device).eval()
+        resolved_revision = (getattr(model.config, "_commit_hash", None) or
+                             tokenizer.init_kwargs.get("_commit_hash"))
     edge_vocab = {name: index for index, name in enumerate(
         ("AST", "CFG", "REACHING_DEF", "CDG"))}
     index_rows = []
@@ -222,9 +234,9 @@ def main() -> None:
             if (metadata.get("source_sha256") == source_hash
                     and metadata.get("schema_version") == DATASET_SCHEMA_VERSION
                     and metadata.get("type_vocab_sha256") == type_hash
-                    and metadata.get("model") == args.model
+                    and metadata.get("model") == (None if args.type_only else args.model)
                     and metadata.get("resolved_revision") == resolved_revision
-                    and metadata.get("max_length") == args.max_length
+                    and metadata.get("max_length") == (None if args.type_only else args.max_length)
                     and metadata.get("masked_identifiers") == args.mask_identifiers):
                 print(f"[{shard_no + 1}/{len(paths)}] {path.name}: resume", flush=True)
                 index_rows.extend(metadata["index_rows"])
@@ -236,12 +248,14 @@ def main() -> None:
             chunk = graphs[start:start + 32]
             texts, lengths = [], []
             for graph in chunk:
-                node_texts = [code_text(node, args.mask_identifiers)
-                              for node in graph.get("nodes", [])]
-                lengths.append(len(node_texts))
-                texts.extend(node_texts)
-            embeddings = embed_texts(texts, tokenizer, model, device,
-                                     args.batch_size, args.max_length)
+                nodes = graph.get("nodes", [])
+                lengths.append(len(nodes))
+                if not args.type_only:
+                    texts.extend(code_text(node, args.mask_identifiers) for node in nodes)
+            embeddings = (torch.empty((sum(lengths), 0), dtype=torch.float16)
+                          if args.type_only else
+                          embed_texts(texts, tokenizer, model, device,
+                                      args.batch_size, args.max_length))
             cursor = 0
             for graph, count in zip(chunk, lengths):
                 data_items.append(graph_to_data(
@@ -266,10 +280,13 @@ def main() -> None:
             "schema_version": DATASET_SCHEMA_VERSION,
             "source": str(path),
             "source_sha256": source_hash,
-            "type_vocab_sha256": type_hash, "model": args.model,
-            "revision": args.revision, "resolved_revision": resolved_revision,
-            "max_length": args.max_length,
+            "type_vocab_sha256": type_hash,
+            "model": None if args.type_only else args.model,
+            "revision": None if args.type_only else args.revision,
+            "resolved_revision": resolved_revision,
+            "max_length": None if args.type_only else args.max_length,
             "masked_identifiers": args.mask_identifiers,
+            "feature_variant": variant,
             "graphs": len(data_items), "index_rows": shard_index,
         }
         metadata_path.write_text(json.dumps(metadata, separators=(",", ":")) + "\n")
@@ -283,10 +300,13 @@ def main() -> None:
     environment = {
         "python_torch": version("torch"), "torch_geometric": version("torch-geometric"),
         "transformers": version("transformers"), "model": args.model,
-        "revision": args.revision, "resolved_revision": resolved_revision,
+        "model": None if args.type_only else args.model,
+        "revision": None if args.type_only else args.revision,
+        "resolved_revision": resolved_revision,
         "device": str(device), "masked_identifiers": args.mask_identifiers,
         "feature_variant": variant,
-        "max_length": args.max_length, "node_type_vocab_sha256": type_hash,
+        "max_length": None if args.type_only else args.max_length,
+        "node_type_vocab_sha256": type_hash,
         "node_type_vocab_source": "split_within=train AND split_cross=train; labels not read",
         "unknown_node_type": UNKNOWN_NODE_TYPE,
         "graphs": len(index_rows), "node_types": type_vocab,

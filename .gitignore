@@ -17,3 +17,7 @@ workspace/
 
 __pycache__/
 *.pyc
+# Large local graph archive and generated report build assets
+/results/graphs_full_*.tar.gz
+/tmp/
+# Keep the handoff report PDF, but not generated temporary previews

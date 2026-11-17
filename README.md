@@ -1,13 +1,13 @@
 # VulnGNN: Graph-Based Vulnerability Detection, Tested on Code It Has Never Seen
 
-> **Status:** Phase 1 (data and evaluation foundation) complete. Phase 2 in progress: expanded text, Semgrep Community Edition, and Cppcheck baselines are measured; full-scale graph extraction and the graph dataset remain. No GNN results yet.
+> **Status (17 November 2026):** Full Joern extraction and audit are complete locally (117,673 planned functions; 107,461 graphs; zero audit errors). PyTorch/CUDA, type-only PyG features, seed-42 R-GCN test runs for within-project and cross-project settings, and localhost model-backed inference are working. The preliminary APs are 0.130 within (95% cluster CI 0.109–0.159) and 0.108 cross-project (0.076–0.137); both use node types only and one seed. App Control still blocks Transformers' native `regex` extension, so CodeBERT features are unavailable. More seeds, ablations, and localization remain; see [`docs/APP_CONTROL_RUNTIME.md`](docs/APP_CONTROL_RUNTIME.md) and [`docs/short_report.md`](docs/short_report.md).
 
 See the concise measured [project progress report](docs/short_report.md); it labels unmeasured GNN and localization work as pending.
 
 ## Research question and hypothesis
 **Research question:** Does code-property-graph structure improve vulnerability detection on projects the model has never seen, especially after identifiers are abstracted?
 
-**Hypothesis:** AST, control-flow and data-flow structure may retain vulnerability signals that generalize better than project-specific identifier vocabulary. This is not established by the current baselines; full graph extraction and GNN evaluation remain pending.
+**Hypothesis:** AST, control-flow and data-flow structure may retain vulnerability signals that generalize better than project-specific identifier vocabulary. This is not established by the current baselines; GNN evaluation remains pending.
 
 ## Problem
 Detect vulnerable C/C++ functions with a gated graph neural network over code property graphs (AST + control-flow + data-flow), localize the vulnerable lines, and evaluate on **projects the model has never seen**, against static-analysis and ML baselines.
@@ -132,11 +132,12 @@ Example: `chdlc_if_print` from tcpdump (CVE-2017-13687, label: vulnerable), 38 n
   - [x] Expanded C grid and identifier-masking ablation (one seed run)
   - [x] Joern graph extraction pilot (57 of 60 functions)
   - [x] Deterministic graph workset planner (seeded safe-row sampling)
-  - [ ] Joern batch extraction and parse-coverage audit on Kaggle (runner added; full run pending)
+  - [x] Full Joern batch extraction and parse-coverage audit (117,673 planned; 107,461 graphs; zero audit errors; local Windows run)
   - [x] Semgrep baseline (frozen 4-rule C/C++ configuration; no alerts)
-  - [ ] Graph extraction at full scale (Kaggle)
-  - [ ] PyTorch Geometric dataset with CodeBERT node features (converter added; full data conversion pending)
-- [ ] **Phase 3:** R-GCN model implemented; training, ablations (edge types, layers, with/without identifier text), Optuna tuning on project-disjoint validation, localization against fix diffs, final evaluation
+  - [x] Graph extraction at full scale (local Windows run; checkpoint archive saved under results/)
+  - [x] PyTorch Geometric type-only feature shards for all 107,461 successful graphs (21 node types)
+  - [ ] CodeBERT raw-token and identifier-masked features (blocked by the current App Control denial of `regex._regex.cp313-win_amd64.pyd`; see `docs/APP_CONTROL_RUNTIME.md`)
+- [ ] **Phase 3:** R-GCN model implemented; one seed-42 test run for each split is complete for node-type-only features (within AP 0.130, cross AP 0.108; see `docs/short_report.md`). More seeds, edge ablations, CodeBERT comparisons, and localization remain.
 
 ## Reproduce
 ```bash
@@ -150,6 +151,30 @@ python src/vulngnn/data/near_dup_check.py
 PYTHONPATH=src python src/vulngnn/train/baseline_tfidf.py
 PYTHONPATH=src python src/vulngnn/eval/make_figures.py
 ```
+
+### Preliminary type-only R-GCN on the local Windows GPU
+
+The 59 type-only feature shards are already saved in `data/graph_dataset/joern_type_only/`. The measured seed-42 cross-project run used the following validation-selected parameters; its test results are in `results/gnn/joern_type_only/cross/all_edges/`.
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path .\src).Path
+.\.venv-gpu\Scripts\python.exe -m vulngnn.train.train_gnn `
+  --setting cross `
+  --data .\data\graph_dataset\joern_type_only `
+  --output .\results\gnn `
+  --device cuda --batch-size 128 --epochs 25 --patience 5 `
+  --hidden-dim 256 --layers 4 --dropout 0.1624074561769746 `
+  --lr 0.00016998978382700775 --weight-decay 0.000001493656855461763 `
+  --pos-weight-scale 1.7992642186624028
+```
+
+To run the local website and C/C++ inference API, use the same `.venv-gpu` environment and open `http://127.0.0.1:8000`:
+
+```powershell
+.\.venv-gpu\Scripts\python.exe .\scripts\serve_web.py --host 127.0.0.1 --port 8000
+```
+
+Analysis uploads are sent only to this localhost server. The current model score is uncalibrated and is a research output, not a security verdict. The API uses the bundled Joern CLI and node-type-only features; CodeBERT is not used.
 
 Reproduce the complete Phase 2A baseline suite (frozen local Semgrep rules, resumable scans, validation-tuned text grid, cluster intervals, tables and figures):
 ```bash
@@ -170,7 +195,7 @@ Graph workset planning (safe to run on the laptop; does not write source files):
 source .venv/bin/activate
 PYTHONPATH=src python -m vulngnn.graphs.prepare_graph_workset --plan-only
 ```
-The planner selects vulnerable functions, eligible validation/test rows (excluding cross-project near-duplicates), and a seeded sample of safe training functions. The recorded full workset has 117,673 functions in 59 batches of 2,000; its manifest and project coverage table are in `results/graph_throughput_2k/full_workset_batch2000/`. Full Joern extraction has not run. A 2,000-function seed-42 throughput sample is documented below.
+The planner selects vulnerable functions, eligible validation/test rows (excluding cross-project near-duplicates), and a seeded sample of safe training functions. The complete local workset has 117,673 functions in 59 batches of 2,000; its manifest and project coverage table are under `data/graph_workset/`. Full Joern extraction and audit have completed locally; the measured 2,000-function seed-42 throughput sample is documented below.
 
 The processed data and Joern installation are excluded from Git. Package those inputs together with the reviewed graph-pipeline and checkpoint tools for a private Kaggle Dataset upload with:
 ```bash
@@ -202,7 +227,7 @@ Compact graphs are written as JSONL under `data/graph_workset/graphs/`; per-func
 
 The independent audit checks that every planned uid has exactly one status, every successful status has exactly one JSONL graph, metadata and labels match the manifest, edge indices stay within the node list, and truncation counts agree. Use `--allow-partial` only to audit a limited smoke run; a full run should report `complete: true` and an empty `errors` list in `graphs/audit_summary.json`.
 
-The full workset runner and graph audit are prepared but have not produced full-scale extraction results. METHOD nodes are matched by uid in Joern's filename; when several candidates match, the largest AST subtree is selected, which may choose the wrong method in unusual nested/wrapper cases. The 2,000-function sample above is the measured throughput evidence, not a full-run coverage guarantee.
+Full-workset Joern extraction produced 107,461 graphs from 117,673 planned functions (91.32% coverage); the independent audit reported zero batch errors and zero audit errors. Results and the checkpoint archive are under `data/graph_workset/graphs/` and `results/graphs_full_2026-11-16.tar.gz`. METHOD nodes are matched by uid in Joern's filename; when several candidates match, the largest AST subtree is selected, which may choose the wrong method in unusual nested/wrapper cases. The 2,000-function sample above is a throughput estimate, not a guarantee for individual batches.
 
 The planned PyG node-type vocabulary is built only from rows whose roles are `train` in both split definitions, without reading labels or test performance. Unseen node types map to `__UNK__`. Graphs are truncated to the first 500 AST nodes in breadth-first order; this can discard later code and its edges, so the full run must report truncation coverage by class and split.
 

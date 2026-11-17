@@ -115,20 +115,22 @@ def main() -> None:
         parser.error("--limit-batches must be positive")
 
     joern_dir = args.joern_dir.resolve()
+    launcher_suffix = ".bat" if os.name == "nt" else ""
     missing_tools = [name for name in ("joern-parse", "joern-export")
-                     if not (joern_dir / name).is_file()]
+                     if not (joern_dir / f"{name}{launcher_suffix}").is_file()]
     if missing_tools:
         parser.error(f"Joern executables missing under {joern_dir}: {', '.join(missing_tools)}")
 
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT / "src") + os.pathsep + env.get("PYTHONPATH", "")
+    java_name = "java.exe" if os.name == "nt" else "java"
     if args.java_home:
         java_home = args.java_home.resolve()
-        if not (java_home / "bin/java").is_file():
+        if not (java_home / "bin" / java_name).is_file():
             parser.error(f"Java executable not found under {java_home}")
         env["JAVA_HOME"] = str(java_home)
         env["PATH"] = str(java_home / "bin") + os.pathsep + env.get("PATH", "")
-    java_executable = (Path(env["JAVA_HOME"]) / "bin/java" if env.get("JAVA_HOME")
+    java_executable = (Path(env["JAVA_HOME"]) / "bin" / java_name if env.get("JAVA_HOME")
                        else Path(shutil.which("java") or ""))
     if not java_executable.is_file():
         parser.error("Java 21 not found; set JAVA_HOME or pass --java-home")

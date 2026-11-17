@@ -116,7 +116,9 @@ def ensure_batch_sources(batch_dir: Path, batch: pd.DataFrame, data_path: Path) 
     source_dir.mkdir(parents=True, exist_ok=True)
     for row in missing:
         code = code_by_hash.loc[str(row.norm_hash)]
-        (source_dir / f"{row.uid}{row.ext}").write_text(str(code).rstrip() + "\n")
+        (source_dir / f"{row.uid}{row.ext}").write_text(
+            str(code).rstrip() + "\n", encoding="utf-8"
+        )
     print(f"  restored {len(missing):,} missing source files from parquet", flush=True)
 
 
@@ -393,8 +395,9 @@ def main() -> None:
     if args.max_nodes < 1:
         parser.error("max-nodes must be positive")
     joern_dir = args.joern_dir.resolve()
-    parse = joern_dir / "joern-parse"
-    export = joern_dir / "joern-export"
+    launcher_suffix = ".bat" if os.name == "nt" else ""
+    parse = joern_dir / f"joern-parse{launcher_suffix}"
+    export = joern_dir / f"joern-export{launcher_suffix}"
     if not parse.exists() or not export.exists():
         raise SystemExit(f"Joern CLI not found under {args.joern_dir}")
     if args.java_home:
@@ -462,13 +465,22 @@ def main() -> None:
             f"batch_{int(batch_id):05d}_attempt_{attempt_no:03d}.partial.jsonl"
         )
         try:
-            with log_path.open("w") as log:
+            # Joern may echo non-ASCII source text; use UTF-8 explicitly so
+            # Windows' legacy console code page cannot fail a whole batch.
+            with log_path.open("w", encoding="utf-8", errors="replace") as log:
                 ensure_batch_sources(batch_dir, batch_manifest, args.data.resolve())
                 attempts_dir.mkdir(parents=True, exist_ok=True)
                 attempt_dir.mkdir()
-                (attempt_dir / "src").symlink_to(
-                    (batch_dir / "src").resolve(), target_is_directory=True
-                )
+                source_link = attempt_dir / "src"
+                source_dir = (batch_dir / "src").resolve()
+                if os.name == "nt":
+                    # Directory junctions do not require Developer Mode or
+                    # elevated symbolic-link privileges on Windows.
+                    subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J",
+                                    str(source_link), str(source_dir)],
+                                   stdout=log, stderr=subprocess.STDOUT, check=True)
+                else:
+                    source_link.symlink_to(source_dir, target_is_directory=True)
                 commands = (
                     ("parse", [str(parse), "--language", "c", "src"]),
                     ("export", [str(export), "--repr", "all", "--format",
@@ -478,8 +490,13 @@ def main() -> None:
                     log.write("$ " + " ".join(cmd) + "\n")
                     log.flush()
                     stage_started = time.perf_counter()
-                    subprocess.run(cmd, cwd=attempt_dir, stdout=log,
-                                   stderr=subprocess.STDOUT, check=True)
+                    if os.name == "nt" and cmd[0].lower().endswith((".bat", ".cmd")):
+                        command_line = "call " + subprocess.list2cmdline(cmd)
+                        subprocess.run(command_line, cwd=attempt_dir, stdout=log,
+                                       stderr=subprocess.STDOUT, check=True, shell=True)
+                    else:
+                        subprocess.run(cmd, cwd=attempt_dir, stdout=log,
+                                       stderr=subprocess.STDOUT, check=True)
                     timing[f"{stage}_seconds"] = time.perf_counter() - stage_started
             conversion_started = time.perf_counter()
             stats = export_graphs(attempt_dir / "export", batch_manifest,

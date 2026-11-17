@@ -1,6 +1,6 @@
 # GNN-Based Source Code Vulnerability Detection with Localization
 
-**Progress report — 14 November 2026.** This is a measured project update, not the final model report: full-scale Joern extraction, GNN training, and localization have not run.
+**Progress report — 17 November 2026.** Full-scale Joern extraction is complete, and one seed-42 type-only R-GCN has been trained and tested on the cross-project split using the local RTX 4060. This remains a preliminary result: CodeBERT features, within-project GNN evaluation, multi-seed comparison, edge ablations, and localization are still pending. Windows App Control blocks the Transformers `regex` extension; details are recorded in `docs/APP_CONTROL_RUNTIME.md`.
 
 ## Research question
 
@@ -27,6 +27,17 @@ All text results below are single-seed test metrics. C and F1 thresholds are sel
 | Cross | TF-IDF + logistic regression | API-preserving mask | 0.122 (0.094–0.157) | 0.160 | 0.204 |
 | Cross | TF-IDF + logistic regression | Fully masked | 0.124 (0.097–0.158) | 0.161 | 0.209 |
 
+## Preliminary graph-model results: node-type-only R-GCN
+
+Seed-42 R-GCN runs use one-hot Joern node types and AST, CFG, reaching-definition, and control-dependence edges. They contain no code-text embeddings. The within run selected hyperparameters on its own validation set (five Optuna trials); the cross run selected on cross-project validation (one completed trial). Thresholds were selected on each setting's validation data. Test metrics use cluster-bootstrap confidence intervals over projects for cross-project and function groups for within-project.
+
+| Split | Test N | Positives | AP (cluster 95% CI) | ROC-AUC | F1 | Threshold | Best validation AP (epoch) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Within project | 16,631 | 776 | 0.130 (0.109–0.159) | 0.727 | 0.202 | 0.769 | 0.134 (14) |
+| Cross project | 20,957 | 917 | 0.108 (0.076–0.137) | 0.710 | 0.196 | 0.799 | 0.122 (9) |
+
+These are uncalibrated, single-seed estimates; they are not CodeBERT results or a claim of superiority over text baselines. A split-overlap audit found 833 within-test UIDs also appeared in cross-validation. The first within run used cross-selected hyperparameters and is retained as an exploratory artifact only; the reported within result is a fresh fit after five-trial within-validation tuning. The graph test cohorts contain only successful Joern parses and differ from the text-baseline cohort; the two split settings also share some test functions and should not be compared as paired estimates. Detailed metrics, score files, and per-project rows are under `results/gnn/joern_type_only/`.
+
 For raw tokens, validation selected C=10.0 within-project and C=0.03 cross-project. The earlier single-mask run in `results/baseline_results.csv` gives 0.356 to 0.141 AP within-project and 0.105 to 0.121 cross-project. Its cross-project row-level intervals overlap for raw text (0.097–0.117), the masked model (0.111–0.136), and length-only (0.106–0.131); those intervals are optimistic. The newer masked variants above use cluster intervals. These results are consistent with identifier sensitivity but do not prove that project-vocabulary memorization causes the cross-project collapse.
 
 ## Semgrep baseline
@@ -46,12 +57,13 @@ Precision is low at this fixed operating point, and parser diagnostics may contr
 
 ## Graph pipeline status
 
-The 60-function Joern pilot produced 57 graphs (95%); the three failures had no matching method. The pilot graph and manifest CSVs record the sample and graph statistics. The repository contains prepared workset, Joern-runner, audit, PyG-feature, R-GCN training, comparison, and localization code, but full-scale graph extraction, CodeBERT feature generation, GNN training, and localization have not produced results.
+The 60-function Joern pilot produced 57 graphs (95%); the three failures had no matching method. The full deterministic workset contained 117,673 functions. Joern produced 107,461 graphs (91.32%): 99,739 of 109,064 safe functions and 7,722 of 8,609 vulnerable functions. The independent audit accounted for every planned function and reported zero errors or batch errors. There were 1,682 truncated graphs. The complete checkpoint archive is `results/graphs_full_2026-11-16.tar.gz` (334,855,059 bytes), with a SHA-256 sidecar. Full extraction was performed locally on Windows using Joern 4.0.683 and Java 21.0.13.
+
+The type-only PyTorch Geometric shards and one trained cross-project R-GCN checkpoint now exist. PyTorch/CUDA and the RTX 4060 work. CodeBERT feature generation remains blocked because Windows App Control denies `regex._regex.cp313-win_amd64.pyd`; no policy was changed. The local API now extracts a source graph with Joern and returns a model score from the type-only checkpoint. Localization results have not been measured.
 
 ## Next work
 
-1. Run the Joern workset and audit coverage by class, split, and project, plus graph consistency and truncation counts.
-2. Build raw-identifier and identifier-masked CodeBERT feature shards.
-3. Tune on validation, then report both split settings over at least three seeds with project-cluster confidence intervals.
-4. Compare on the exact rows with successful graphs and report Semgrep at its fixed operating point.
-5. Measure top-1/3/5 changed-line localization against the random-lines baseline, then replace this progress report with the final results and limitations.
+1. Run the type-only within-project split, then cross-project additional seeds and edge-relation ablations; report confidence intervals without tuning on test data.
+2. Obtain an approved deployment/allowance for the blocked Transformers native extension, then build raw-token and identifier-masked CodeBERT shards.
+3. Evaluate text-plus-graph R-GCNs on identical successful-graph cohorts and compare with the TF-IDF baselines.
+4. Measure top-1/3/5 changed-line localization against a random-lines baseline, then replace this progress report with final results and limitations.
