@@ -104,7 +104,7 @@ def main():
               para("Precision target transfer: validation thresholds intended to reach 50-60% precision produced held-out precision 0.000-0.179 and recall 0.000-0.008. Do not present the target precision as achieved.", styles["Body2"]),
               para("Changed-line proxy: top-1 / top-3 / top-5 overlap rates are 0.189 / 0.344 / 0.435 on 917 vulnerable functions, versus exact random expectations 0.108 / 0.234 / 0.321. The target is the fix-changed region, not a verified vulnerable line.", styles["Body2"]),
               para("What remains", styles["Section2"])]
-    remaining = [["Runtime", "Windows App Control blocks the Transformers regex native extension; CodeBERT remains unavailable. No security policy was changed."],
+    remaining = [["Runtime", "CodeBERT imports and the 12-graph CUDA feature smoke test pass. Full raw/masked feature extraction and CodeBERT GNN training remain."],
                  ["Model evidence", "More independently tuned relation ablations and broader external validation are needed. Held-out evaluation has not achieved a reliable 50-60% precision operating point."],
                  ["Localization", "Validate attribution against manually reviewed vulnerability-line annotations before claiming line-level accuracy."],
                  ["Scope", "Private GitHub contains source and compact reports. Full data, graph shards, Joern, environments, checkpoints and per-function score tables remain local and are excluded from Git."]]

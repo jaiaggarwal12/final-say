@@ -315,7 +315,7 @@ class Handler(SimpleHTTPRequestHandler):
                             "Scores are uncalibrated research outputs; CodeBERT features remain pending."
                             if available else
                             "Graph extraction and type-only features are ready; R-GCN training and "
-                            "model-backed inference are pending. CodeBERT is blocked by Windows App Control."),
+                            "model-backed inference are pending. A 12-graph CodeBERT feature smoke run now passes; full feature extraction and training remain."),
             })
             return
         if path == "/api/research/baselines":

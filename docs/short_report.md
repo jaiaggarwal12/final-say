@@ -92,7 +92,7 @@ $env:PYTHONPATH = (Resolve-Path .\src).Path
 
 ## Remaining work
 
-- CodeBERT feature generation is blocked by Windows App Control denying the Transformers regex native extension. No security policy was changed.
+- A historical Nov 17 App Control event blocked the Transformers regex extension. On Nov 24, the current project environment imported `regex`/Transformers successfully and generated a 12-graph raw CodeBERT smoke shard on CUDA; no policy was changed for this run. Full raw/masked feature extraction and CodeBERT GNN training remain.
 - A gradient-based patch-overlap localization proxy is measured; it does not validate vulnerability-line accuracy. Compare against manually verified line labels before making stronger localization claims.
 - More seeds and independently tuned ablations are needed before drawing conclusions about edge relations.
 - The GitHub clone excludes local data, Joern binaries, environments, checkpoints, and prediction tables; see LOCAL_ARTIFACTS.md. Ragini needs GitHub access to the private repository and local runtime artifacts for the source-analysis route.

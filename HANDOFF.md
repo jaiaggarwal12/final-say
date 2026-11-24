@@ -9,7 +9,7 @@ Updated 24 November 2026. The source is pushed to the private repository https:/
 - Python environment: .venv-gpu
 - Joern and Java 21 are installed under tools/.
 - The app was previously run on localhost ports 8005 and 8007. Start a fresh server on port 8000 with the command below.
-- Windows App Control blocks Transformers regex native extension. CodeBERT features remain unavailable; no policy was changed.
+- Current CodeBERT status: `regex` and Transformers import successfully. A 12-graph raw CodeBERT feature smoke run passed on CUDA. The earlier Nov 17 App Control event is historical; no policy was changed during the Nov 24 smoke run. Full raw/masked feature extraction and CodeBERT GNN training remain.
 
 ## Completed research
 
@@ -40,7 +40,7 @@ Datasets (~17 GiB), graph feature shards, Joern, Python environments, model chec
 
 ## Remaining research
 
-1. Resolve CodeBERT runtime access only through an approved deployment or managed package path.
+1. Generate full raw and identifier-masked CodeBERT feature shards, then tune and train CodeBERT GNN baselines. A 12-graph CUDA smoke run now passes.
 2. Improve line localization against manually reviewed vulnerability-line labels; the current patch-overlap proxy is preliminary.
 3. Run more seeds and validation-tuned ablations before making relation-level claims.
 4. Revisit the threshold calibration strategy; current validation-selected precision targets do not transfer.
