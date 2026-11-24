@@ -27,7 +27,15 @@ R-GCN with one-hot Joern node types and AST, CFG, reaching-definition, and contr
 
 Mean cross-project AP is 0.111 (sample SD 0.003 across three seeds). This is a preliminary node-type-only result and is not a CodeBERT comparison.
 
-The clean within-project seed-42 run has N=16,631, 776 positives, AP 0.130 (function-group 95% CI 0.109–0.159), and ROC-AUC 0.727. Its split is not directly paired with the cross-project cohort.
+The within-project model now has three initialization seeds on the same project/function-group split, with the same hyperparameters selected on validation. All runs have N=16,631 and 776 positives.
+
+| Seed | Test AP (function-group cluster 95% CI) | ROC-AUC | Precision | Recall | Best validation AP (epoch) |
+|---:|---:|---:|---:|---:|---:|
+| 42 | 0.130 (0.109–0.159) | 0.727 | 0.160 | 0.272 | 0.134 (14) |
+| 7 | 0.175 (0.152–0.204) | 0.730 | 0.146 | 0.396 | 0.156 (23) |
+| 21 | 0.164 (0.142–0.192) | 0.740 | 0.186 | 0.262 | 0.156 (18) |
+
+Mean AP is 0.156 (sample SD 0.023 across three initializations). The seed-level spread and overlapping function-group intervals show meaningful uncertainty; this is still one dataset split and not evidence of broad deployment performance. Metrics and checkpoints are under `results/gnn/joern_type_only/within/all_edges/`.
 
 ## Matched-cohort comparison
 

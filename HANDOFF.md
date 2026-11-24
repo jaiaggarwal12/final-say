@@ -17,7 +17,7 @@ Updated 24 November 2026. The source is pushed to the private repository https:/
 - Full graph workset: 117,673 planned; 107,461 extracted (91.32%); 1,682 truncated; zero batch or audit errors.
 - 59 type-only feature shards with 21 Joern node types.
 - Cross-project R-GCN: seeds 7, 21, and 42; mean AP 0.111, sample SD 0.003.
-- Within-project seed 42: AP 0.130, function-group cluster CI 0.109–0.159.
+- Within-project R-GCN: seeds 7, 21, and 42 on the same split/configuration; mean AP 0.156, sample SD 0.023. Seed APs are 0.175, 0.164, and 0.130 respectively, each with a function-group cluster interval in its metrics JSON.
 - Four cross-project seed-42 relation ablations are in results/gnn/joern_type_only/cross/without_* and summarized in edge_ablation_summary.csv. Their intervals overlap.
 - Precision target study: thresholds selected on validation for 50% and 60% precision did not transfer. Held-out precision was 0.000–0.179 with recall 0.000–0.008.
 - Held-out line-attribution proxy: top-1/3/5 changed-line hit rates 0.189/0.344/0.435 across all 917 vulnerable test functions; project-cluster intervals and exact random-line expectations are documented in docs/short_report.md. These fix-diff targets are a proxy, not validated vulnerability-line labels.
