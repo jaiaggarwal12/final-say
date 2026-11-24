@@ -174,7 +174,7 @@ To run the local website and C/C++ inference API, use the same `.venv-gpu` envir
 .\.venv-gpu\Scripts\python.exe .\scripts\serve_web.py --host 127.0.0.1 --port 8000
 ```
 
-Analysis uploads are sent only to this localhost server. The current model score is uncalibrated and is a research output, not a security verdict. The API uses the bundled Joern CLI and node-type-only features; CodeBERT is not used.
+Analysis uploads are sent only to this localhost server. The current model score is uncalibrated and is a research output, not a security verdict. The API uses the bundled Joern CLI and selects features from the active checkpoint: the checked-in runtime currently has the node-type-only model; CodeBERT inference activates only when matching feature metadata and a trained CodeBERT checkpoint are present.
 
 Reproduce the complete Phase 2A baseline suite (frozen local Semgrep rules, resumable scans, validation-tuned text grid, cluster intervals, tables and figures):
 ```bash

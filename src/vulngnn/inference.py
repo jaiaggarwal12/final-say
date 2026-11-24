@@ -18,14 +18,23 @@ class GraphPredictor:
         self.checkpoint_path = Path(checkpoint_path)
         self.feature_root = Path(feature_root)
         self.metadata = json.loads((self.feature_root / "metadata.json").read_text(encoding="utf-8"))
-        if self.metadata.get("feature_variant") != "joern_type_only":
-            raise ValueError("This local inference adapter currently supports joern_type_only features")
+        self.feature_variant = str(self.metadata.get("feature_variant", ""))
+        if self.feature_variant not in {"joern_type_only", "codebert_raw", "codebert_masked"}:
+            raise ValueError(f"Unsupported feature variant: {self.feature_variant!r}")
         self.type_vocab = json.loads(
             (self.feature_root / "node_type_vocab.json").read_text(encoding="utf-8"))
         self.edge_vocab = self.metadata["edge_types"]
         self.device = torch.device(
             "cuda" if device == "auto" and torch.cuda.is_available()
             else "cpu" if device == "auto" else device)
+        self.tokenizer = self.encoder = None
+        self.max_length = int(self.metadata.get("max_length") or 128)
+        if self.feature_variant != "joern_type_only":
+            from transformers import AutoModel, AutoTokenizer
+            model_name = self.metadata.get("model") or "microsoft/codebert-base"
+            revision = self.metadata.get("resolved_revision") or self.metadata.get("revision")
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, revision=revision)
+            self.encoder = AutoModel.from_pretrained(model_name, revision=revision).to(self.device).eval()
         checkpoint = torch.load(self.checkpoint_path, map_location="cpu", weights_only=False)
         params = checkpoint["hyperparameters"]
         self.model = RGCNClassifier(
@@ -39,17 +48,37 @@ class GraphPredictor:
         self.model.eval()
         self.threshold = float(checkpoint["threshold_from_validation"])
         self.setting = str(checkpoint["setting"])
-        self.feature_variant = str(checkpoint["feature_variant"])
+        if str(checkpoint["feature_variant"]) != self.feature_variant:
+            raise ValueError("Checkpoint and feature metadata variants do not match")
         self.seed = int(checkpoint["seed"])
 
     def predict(self, graph: dict) -> dict:
         nodes = graph.get("nodes", [])
         if not nodes:
             raise ValueError("Joern did not produce a function graph with nodes")
-        x = torch.zeros((len(nodes), len(self.type_vocab)), dtype=torch.float32)
+        type_features = torch.zeros((len(nodes), len(self.type_vocab)), dtype=torch.float32)
         for index, node in enumerate(nodes):
             node_type = node.get("type", "")
-            x[index, self.type_vocab.get(node_type, self.type_vocab["__UNK__"])] = 1.0
+            type_features[index, self.type_vocab.get(node_type, self.type_vocab["__UNK__"])] = 1.0
+
+        if self.encoder is None:
+            x = type_features
+        else:
+            from vulngnn.graphs.build_pyg_dataset import mask_identifiers
+            texts = [str(node.get("code", "") or "") for node in nodes]
+            if self.feature_variant == "codebert_masked":
+                texts = [mask_identifiers(text) for text in texts]
+            embeddings = []
+            for start in range(0, len(texts), 64):
+                tokens = self.tokenizer(texts[start:start + 64], padding=True,
+                                        truncation=True, max_length=self.max_length,
+                                        return_tensors="pt")
+                tokens = {key: value.to(self.device) for key, value in tokens.items()}
+                with torch.inference_mode():
+                    cls = self.encoder(**tokens).last_hidden_state[:, 0, :]
+                embeddings.append(cls.float().cpu())
+            code_features = torch.cat(embeddings, dim=0)
+            x = torch.cat((type_features, code_features), dim=1)
 
         edge_index_rows, edge_types = [], []
         for edge in graph.get("edges", []):

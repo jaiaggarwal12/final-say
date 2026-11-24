@@ -33,7 +33,6 @@ GNN_RESULTS = ROOT / "results/gnn"
 PRECISION_POINTS = ROOT / "results/precision_operating_points/cross_precision_operating_points.csv"
 MATCHED_COMPARISON = ROOT / "results/gnn/joern_type_only/cross/matched_baseline_comparison_seed42.csv"
 JOERN_DIR = ROOT / "tools/joern/joern-cli"
-FEATURE_ROOT = ROOT / "data/graph_dataset/joern_type_only"
 GRAPH_ID = re.compile(r"^f_[0-9a-f]{12,32}$")
 FIGURE_NAMES = {
     "05_baselines_v2_pr_within.png",
@@ -83,11 +82,23 @@ def available_gnn_checkpoints() -> list[str]:
 
 
 def active_checkpoint() -> Path | None:
-    preferred = GNN_RESULTS / "joern_type_only/cross/all_edges/model_seed42.pt"
+    requested = os.environ.get("VULNGNN_FEATURE_VARIANT")
+    if requested not in {"joern_type_only", "codebert_raw", "codebert_masked"}:
+        requested = None
+    if not requested:
+        codebert = GNN_RESULTS / "codebert_raw/cross/all_edges/model_seed42.pt"
+        requested = "codebert_raw" if codebert.is_file() else "joern_type_only"
+    preferred = GNN_RESULTS / requested / "cross/all_edges/model_seed42.pt"
     if preferred.is_file():
         return preferred
-    paths = sorted(GNN_RESULTS.rglob("model_seed*.pt")) if GNN_RESULTS.is_dir() else []
+    variant_root = GNN_RESULTS / requested
+    paths = sorted(variant_root.rglob("model_seed*.pt")) if variant_root.is_dir() else []
     return paths[0] if paths else None
+
+
+def feature_root_for_checkpoint(checkpoint: Path) -> Path:
+    variant = checkpoint.parent.parent.parent.name
+    return ROOT / "data/graph_dataset" / variant
 
 
 def gnn_test_metrics() -> list[dict]:
@@ -132,7 +143,8 @@ def _load_predictor(checkpoint: str, modified_ns: int):
     del modified_ns
     sys.path.insert(0, str(ROOT / "src"))
     from vulngnn.inference import GraphPredictor
-    return GraphPredictor(checkpoint, FEATURE_ROOT)
+    checkpoint_path = Path(checkpoint)
+    return GraphPredictor(checkpoint_path, feature_root_for_checkpoint(checkpoint_path))
 
 
 def graph_predictor():
@@ -301,7 +313,10 @@ class Handler(SimpleHTTPRequestHandler):
             checkpoints = available_gnn_checkpoints()
             checkpoint = active_checkpoint()
             graphs = graph_status()
-            available = checkpoint is not None and FEATURE_ROOT.joinpath("metadata.json").is_file()
+            feature_variant = (feature_root_for_checkpoint(checkpoint).name
+                               if checkpoint is not None else None)
+            available = (checkpoint is not None and
+                         feature_root_for_checkpoint(checkpoint).joinpath("metadata.json").is_file())
             self.send_json({
                 "available": available,
                 "status": "ready" if available else "pending",
@@ -309,13 +324,12 @@ class Handler(SimpleHTTPRequestHandler):
                 "checkpoints": checkpoints,
                 "active_checkpoint": (str(checkpoint.relative_to(ROOT)).replace("\\", "/")
                                       if checkpoint else None),
-                "feature_variant": "joern_type_only" if available else None,
+                "feature_variant": feature_variant if available else None,
                 "graph_workset": graphs,
-                "message": ("A preliminary node-type-only R-GCN checkpoint is ready for local inference. "
-                            "Scores are uncalibrated research outputs; CodeBERT features remain pending."
+                "message": (f"A {feature_variant} R-GCN checkpoint is ready for local inference. "
+                            "Scores are uncalibrated research outputs, not security verdicts."
                             if available else
-                            "Graph extraction and type-only features are ready; R-GCN training and "
-                            "model-backed inference are pending. A 12-graph CodeBERT feature smoke run now passes; full feature extraction and training remain."),
+                            "No compatible feature set and trained R-GCN checkpoint are available."),
             })
             return
         if path == "/api/research/baselines":
