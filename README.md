@@ -1,6 +1,6 @@
 # VulnGNN: Graph-Based Vulnerability Detection, Tested on Code It Has Never Seen
 
-> **Status (24 November 2026):** Full Joern extraction and audit are complete locally (117,673 planned; 107,461 graphs; zero audit errors). The node-type-only R-GCN has three cross-project seeds (mean AP 0.111), one clean within-project seed (AP 0.130), and four single-seed relation ablations. A validation-selected 50–60% precision threshold failed to transfer to held-out projects (test precision 0.000–0.179). The local UI reports these results and supports local source-to-graph inference when the ignored runtime artifacts are present. App Control blocks the Transformers regex extension, so CodeBERT remains unavailable; a preliminary patch-overlap localization proxy measures top-1/3/5 hits at 0.189/0.344/0.435 versus exact random expectations 0.108/0.234/0.321; this is not ground-truth line localization. See docs/short_report.md and docs/APP_CONTROL_RUNTIME.md.
+> **Status (24 November 2026):** Full Joern extraction and audit are complete locally (117,673 planned; 107,461 graphs; zero audit errors). The node-type-only R-GCN has three cross-project seeds (mean AP 0.111), one clean within-project seed (AP 0.130), and four single-seed relation ablations. A same-function matched evaluation compares the seed-42 graph model with legacy text baselines across 20,957 held-out functions; AP differences are small and project-bootstrap intervals include zero, so no graph advantage is established. A validation-selected 50–60% precision threshold failed to transfer to held-out projects (test precision 0.000–0.179). The local UI reports these results and supports local source-to-graph inference when the ignored runtime artifacts are present. App Control blocks the Transformers regex extension, so CodeBERT remains unavailable; a preliminary patch-overlap localization proxy measures top-1/3/5 hits at 0.189/0.344/0.435 versus exact random expectations 0.108/0.234/0.321; this is not ground-truth line localization. See docs/short_report.md and docs/APP_CONTROL_RUNTIME.md.
 
 See the current measured [project report](docs/short_report.md), the [local artifact manifest](LOCAL_ARTIFACTS.md), and the [Mac Codex handoff prompt](RAGINI_REMOTE_CODEX_PROMPT.md).
 
@@ -269,6 +269,12 @@ PYTHONPATH=src python -m vulngnn.explain.localize_gnn \
 The output contains per-function line rankings and hit indicators plus coverage and aggregate hit rates. Run it separately for each split, seed and feature variant; no localization results exist until the full graphs and trained checkpoints are available.
 
 ### Baseline comparison
+
+For the paired legacy v1 text baseline versus the seed-42 type-only GNN comparison on identical graph-covered test functions, regenerate the 1,000-replicate whole-project bootstrap table:
+```bash
+python scripts/evaluate_matched_baseline_comparison.py
+```
+It verifies normalized function IDs, labels, and project assignments before calculating metrics. The comparison is explicitly labeled legacy v1; the complete text-baseline table uses the later v2 validation-tuned scores.
 
 Baseline score files include `norm_hash` so comparisons can be restricted to the exact rows that also produced graphs. The legacy score file was aligned to function IDs only after checking every saved label and row count; `PYTHONPATH=src python -m vulngnn.eval.align_baseline_scores` repeats this strict alignment if needed. Compare a trained model with all baselines on the shared graph-covered rows:
 ```bash

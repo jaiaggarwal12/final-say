@@ -29,6 +29,18 @@ Mean cross-project AP is 0.111 (sample SD 0.003 across three seeds). This is a p
 
 The clean within-project seed-42 run has N=16,631, 776 positives, AP 0.130 (function-group 95% CI 0.109–0.159), and ROC-AUC 0.727. Its split is not directly paired with the cross-project cohort.
 
+## Matched-cohort comparison
+
+To compare the graph model fairly with existing text scores, we joined the seed-42 GNN predictions to legacy v1 baseline predictions by normalized function hash and verified that every joined row had the same label and project ID. This yields the same 20,957 held-out functions (917 positives) across 109 projects for every model. Project-cluster bootstrap intervals describe the paired AP difference (GNN minus text), with 1,000 replicates.
+
+| Text baseline | GNN AP | Text AP | Paired AP difference (project-cluster 95% CI) | GNN ROC-AUC | Text ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| Length only | 0.108 | 0.120 | −0.013 (−0.031–0.009) | 0.710 | 0.738 |
+| TF-IDF logistic regression | 0.108 | 0.105 | +0.002 (−0.010–0.015) | 0.710 | 0.738 |
+| Identifier-masked TF-IDF | 0.108 | 0.120 | −0.013 (−0.029–0.003) | 0.710 | 0.741 |
+
+The AP differences are small and each interval includes zero; the saved result does not establish a graph-model advantage. ROC-AUC is higher for the legacy text baselines. These text scores come from the older baseline artifact, not the later validation-tuned v2 suite in the main baseline table. Reproduce with `python scripts/evaluate_matched_baseline_comparison.py`; output: `results/gnn/joern_type_only/cross/matched_baseline_comparison_seed42.csv`. The Research page displays this same-cohort comparison separately from the full-cohort v2 baseline table.
+
 ## Relation ablations
 
 One seed (42), same cross-project split and baseline hyperparameters, with each edge relation removed in turn. Intervals overlap; this single-seed study does not establish that one relation is better.
@@ -63,7 +75,7 @@ Line mapping coverage was 100% for these 917 graphs. Results are preliminary; th
 
 ## Local demo
 
-The cream-and-olive website provides Overview, Research, Graph explorer, and Analysis preview pages. The Research API reads saved baseline, GNN, precision-transfer, and localization results. Local C/C++ analysis uses Joern and the type-only R-GCN checkpoint when those local artifacts are present. Output scores are uncalibrated research signals, not security verdicts.
+The cream-and-olive website provides Overview, Research, Graph explorer, and Analysis preview pages. The Research API reads saved baseline, GNN, matched-cohort, precision-transfer, and localization results. Local C/C++ analysis uses Joern and the type-only R-GCN checkpoint when those local artifacts are present. Output scores are uncalibrated research signals, not security verdicts.
 
 Start from the repo root with the Windows GPU environment:
 powershell
