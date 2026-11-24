@@ -20,6 +20,7 @@ Updated 24 November 2026. The source is pushed to the private repository https:/
 - Within-project seed 42: AP 0.130, function-group cluster CI 0.109–0.159.
 - Four cross-project seed-42 relation ablations are in results/gnn/joern_type_only/cross/without_* and summarized in edge_ablation_summary.csv. Their intervals overlap.
 - Precision target study: thresholds selected on validation for 50% and 60% precision did not transfer. Held-out precision was 0.000–0.179 with recall 0.000–0.008.
+- Held-out line-attribution proxy: top-1/3/5 changed-line hit rates 0.189/0.344/0.435 across all 917 vulnerable test functions; project-cluster intervals and exact random-line expectations are documented in docs/short_report.md. These fix-diff targets are a proxy, not validated vulnerability-line labels.
 - Local research UI and source-to-graph-to-model inference route are implemented.
 - Progress PDF: output/pdf/VulnGNN_Team_Progress_Report.pdf.
 - Mac Codex prompt: RAGINI_REMOTE_CODEX_PROMPT.md.
@@ -39,6 +40,6 @@ Datasets (~17 GiB), graph feature shards, Joern, Python environments, model chec
 ## Remaining research
 
 1. Resolve CodeBERT runtime access only through an approved deployment or managed package path.
-2. Implement changed-line localization and compare top-1/3/5 with a random-lines baseline.
+2. Improve line localization against manually reviewed vulnerability-line labels; the current patch-overlap proxy is preliminary.
 3. Run more seeds and validation-tuned ablations before making relation-level claims.
 4. Revisit the threshold calibration strategy; current validation-selected precision targets do not transfer.

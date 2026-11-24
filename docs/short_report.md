@@ -49,9 +49,21 @@ For each of three cross-project checkpoints, thresholds targeting 50% and 60% pr
 
 Saved per-seed values: results/precision_operating_points/cross_precision_operating_points.csv. The Research page displays validation and held-out values side by side.
 
+## Changed-line localization proxy
+
+For the 917 vulnerable functions in the held-out cross-project test, absolute gradient×input scores from the seed-42 all-edge R-GCN were summed by Joern source line and ranked. The target set is the changed-line region from each BigVul func_before/func_after diff. This is a patch-overlap proxy, not ground-truth vulnerability line annotation.
+
+| Ranked lines | Hit rate | Project-cluster 95% CI | Exact random-line expected |
+|---:|---:|---:|---:|
+| Top 1 | 0.189 | 0.157–0.235 | 0.108 |
+| Top 3 | 0.344 | 0.294–0.391 | 0.234 |
+| Top 5 | 0.435 | 0.389–0.506 | 0.321 |
+
+Line mapping coverage was 100% for these 917 graphs. Results are preliminary; they show overlap with fix edits, not verified localization of the vulnerability itself. Reproduction: scripts/evaluate_line_localization.py. Results: results/line_localization/cross_seed42_line_localization.json and .csv.
+
 ## Local demo
 
-The cream-and-olive website provides Overview, Research, Graph explorer, and Analysis preview pages. The Research API reads saved baseline, GNN, and precision-transfer results. Local C/C++ analysis uses Joern and the type-only R-GCN checkpoint when those local artifacts are present. Output scores are uncalibrated research signals, not security verdicts.
+The cream-and-olive website provides Overview, Research, Graph explorer, and Analysis preview pages. The Research API reads saved baseline, GNN, precision-transfer, and localization results. Local C/C++ analysis uses Joern and the type-only R-GCN checkpoint when those local artifacts are present. Output scores are uncalibrated research signals, not security verdicts.
 
 Start from the repo root with the Windows GPU environment:
 powershell
@@ -61,6 +73,6 @@ $env:PYTHONPATH = (Resolve-Path .\src).Path
 ## Remaining work
 
 - CodeBERT feature generation is blocked by Windows App Control denying the Transformers regex native extension. No security policy was changed.
-- Changed-line localization has not been implemented or measured.
+- A gradient-based patch-overlap localization proxy is measured; it does not validate vulnerability-line accuracy. Compare against manually verified line labels before making stronger localization claims.
 - More seeds and independently tuned ablations are needed before drawing conclusions about edge relations.
 - The GitHub clone excludes local data, Joern binaries, environments, checkpoints, and prediction tables; see LOCAL_ARTIFACTS.md. Ragini needs GitHub access to the private repository and local runtime artifacts for the source-analysis route.

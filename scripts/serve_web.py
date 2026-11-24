@@ -323,6 +323,14 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/research/gnn":
             self.send_json({"results": gnn_test_metrics(), "source": "results/gnn/*/metrics_seed*.json"})
             return
+        if path == "/api/research/localization":
+            path_json = ROOT / "results/line_localization/cross_seed42_line_localization.json"
+            try:
+                summary = json.loads(path_json.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                summary = {}
+            self.send_json({"summary": summary, "source": "results/line_localization/cross_seed42_line_localization.json"})
+            return
         if path == "/api/research/precision":
             self.send_json({"results": read_csv(PRECISION_POINTS), "source": "results/precision_operating_points/cross_precision_operating_points.csv"})
             return
