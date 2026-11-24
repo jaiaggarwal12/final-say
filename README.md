@@ -1,13 +1,13 @@
 # VulnGNN: Graph-Based Vulnerability Detection, Tested on Code It Has Never Seen
 
-> **Status (17 November 2026):** Full Joern extraction and audit are complete locally (117,673 planned functions; 107,461 graphs; zero audit errors). PyTorch/CUDA, type-only PyG features, seed-42 R-GCN test runs for within-project and cross-project settings, and localhost model-backed inference are working. The preliminary APs are 0.130 within (95% cluster CI 0.109–0.159) and 0.108 cross-project (0.076–0.137); both use node types only and one seed. App Control still blocks Transformers' native `regex` extension, so CodeBERT features are unavailable. More seeds, ablations, and localization remain; see [`docs/APP_CONTROL_RUNTIME.md`](docs/APP_CONTROL_RUNTIME.md) and [`docs/short_report.md`](docs/short_report.md).
+> **Status (24 November 2026):** Full Joern extraction and audit are complete locally (117,673 planned; 107,461 graphs; zero audit errors). The node-type-only R-GCN has three cross-project seeds (mean AP 0.111), one clean within-project seed (AP 0.130), and four single-seed relation ablations. A validation-selected 50–60% precision threshold failed to transfer to held-out projects (test precision 0.000–0.179). The local UI reports these results and supports local source-to-graph inference when the ignored runtime artifacts are present. App Control blocks the Transformers regex extension, so CodeBERT remains unavailable; changed-line localization remains unmeasured. See docs/short_report.md and docs/APP_CONTROL_RUNTIME.md.
 
-See the concise measured [project progress report](docs/short_report.md); it labels unmeasured GNN and localization work as pending.
+See the current measured [project report](docs/short_report.md), the [local artifact manifest](LOCAL_ARTIFACTS.md), and the [Mac Codex handoff prompt](RAGINI_REMOTE_CODEX_PROMPT.md).
 
 ## Research question and hypothesis
 **Research question:** Does code-property-graph structure improve vulnerability detection on projects the model has never seen, especially after identifiers are abstracted?
 
-**Hypothesis:** AST, control-flow and data-flow structure may retain vulnerability signals that generalize better than project-specific identifier vocabulary. This is not established by the current baselines; GNN evaluation remains pending.
+**Hypothesis:** AST, control-flow and data-flow structure may retain signals, but the current graph results do not establish that graph models outperform text baselines.
 
 ## Problem
 Detect vulnerable C/C++ functions with a gated graph neural network over code property graphs (AST + control-flow + data-flow), localize the vulnerable lines, and evaluate on **projects the model has never seen**, against static-analysis and ML baselines.
@@ -137,7 +137,7 @@ Example: `chdlc_if_print` from tcpdump (CVE-2017-13687, label: vulnerable), 38 n
   - [x] Graph extraction at full scale (local Windows run; checkpoint archive saved under results/)
   - [x] PyTorch Geometric type-only feature shards for all 107,461 successful graphs (21 node types)
   - [ ] CodeBERT raw-token and identifier-masked features (blocked by the current App Control denial of `regex._regex.cp313-win_amd64.pyd`; see `docs/APP_CONTROL_RUNTIME.md`)
-- [ ] **Phase 3:** R-GCN model implemented; one seed-42 test run for each split is complete for node-type-only features (within AP 0.130, cross AP 0.108; see `docs/short_report.md`). More seeds, edge ablations, CodeBERT comparisons, and localization remain.
+- [ ] **Phase 3:** R-GCN results now include three cross-project seeds, one clean within-project seed, and four cross-project single-seed edge ablations. The 50–60% precision targets chosen on validation did not transfer to held-out projects. Remaining work: more within-project seeds, independently tuned ablations, CodeBERT comparison after approved runtime access, matched-cohort text-plus-graph evaluation, and changed-line localization.
 
 ## Reproduce
 ```bash

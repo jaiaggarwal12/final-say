@@ -30,6 +30,7 @@ WORKSET_GRAPHS = WORKSET / "graphs"
 FIGURES = ROOT / "results/figures"
 GRAPH_AUDIT = ROOT / "data/graph_workset/graphs/audit_summary.json"
 GNN_RESULTS = ROOT / "results/gnn"
+PRECISION_POINTS = ROOT / "results/precision_operating_points/cross_precision_operating_points.csv"
 JOERN_DIR = ROOT / "tools/joern/joern-cli"
 FEATURE_ROOT = ROOT / "data/graph_dataset/joern_type_only"
 GRAPH_ID = re.compile(r"^f_[0-9a-f]{12,32}$")
@@ -321,6 +322,9 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/api/research/gnn":
             self.send_json({"results": gnn_test_metrics(), "source": "results/gnn/*/metrics_seed*.json"})
+            return
+        if path == "/api/research/precision":
+            self.send_json({"results": read_csv(PRECISION_POINTS), "source": "results/precision_operating_points/cross_precision_operating_points.csv"})
             return
         if path == "/api/research/projects":
             projects = read_csv(PROJECTS)

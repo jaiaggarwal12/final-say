@@ -5,7 +5,6 @@ You are continuing the VulnGNN research project on Ragini on her Mac. The author
 ## Goal
 
 If private-repository access is denied, stop at authentication and report that clearly; do not ask for passwords or tokens in chat.
-The repository may not be immediately cloneable unless Ragini has access to the private GitHub repo. If access is denied, stop at the authentication step and report it clearly.
 Bring the Mac checkout up to date with the Windows work, preserve Mac-only source changes and local research data, and get the fastest working demo running. Start with the website and precomputed research pages. For live source analysis, reuse the existing Joern install, feature metadata, and compatible model checkpoint if present. Do not begin a full dataset rebuild or retraining before making the current demo work.
 
 ## Rules for preserving Ragini's Mac work

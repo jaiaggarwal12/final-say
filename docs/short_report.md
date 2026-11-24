@@ -1,69 +1,66 @@
-# GNN-Based Source Code Vulnerability Detection with Localization
+# VulnGNN research status
 
-**Progress report — 17 November 2026.** Full-scale Joern extraction is complete, and one seed-42 type-only R-GCN has been trained and tested on the cross-project split using the local RTX 4060. This remains a preliminary result: CodeBERT features, within-project GNN evaluation, multi-seed comparison, edge ablations, and localization are still pending. Windows App Control blocks the Transformers `regex` extension; details are recorded in `docs/APP_CONTROL_RUNTIME.md`.
+**Updated 24 November 2026.** This is a working research prototype with a polished local UI, audited code graphs, cross-project and within-project R-GCN results, and a validation-to-test precision-transfer study. It is not a production vulnerability detector.
 
-## Research question
+## Research goal
 
-Does code-property-graph structure help vulnerability detection generalize to projects that were not seen during training, especially after function identifiers are abstracted away?
+Test whether code-property-graph structure (syntax, control flow, data dependencies, and control dependence) can rank vulnerable C/C++ functions in repositories excluded from training.
 
-## Data and evaluation
+## Data and graph pipeline
 
-The cleaned BigVul data contains 182,100 C/C++ functions from 295 merged projects, including 8,609 vulnerable functions (4.73%). The dataset's language field is unreliable, so Joern input extensions are selected from code syntax. The within-project split groups by project and function name. The cross-project split holds out entire projects and excludes rows flagged as near duplicates from evaluation. Thresholds and model choices use validation data only.
+- Cleaned BigVul set: 182,100 functions, 8,609 vulnerable functions, 295 merged projects.
+- Deterministic graph workset: 117,673 functions.
+- Joern extraction: 107,461 graphs (91.32%); 1,682 truncated; no batch or audit errors.
+- Type-only feature shards: 59 shards, 21 node types.
+- Held-out graph test cohort: 20,957 functions, 917 positives (4.38%); evaluation excludes near duplicates.
+- Full source data, graph shards, Joern installation, environments, checkpoints, and prediction tables remain local. The repo documents these exclusions in LOCAL_ARTIFACTS.md.
 
-The cleaning process removes no-op fixes, conflicting-label groups, redundant duplicates, and functions longer than 8,000 characters. This removes a material share of vulnerable examples; labels remain noisy because the data is derived from vulnerability-fix commits.
+## Baseline graph model
 
-## Baseline results
+R-GCN with one-hot Joern node types and AST, CFG, reaching-definition, and control-dependence relations. Threshold selected on validation; test evaluated once. Confidence intervals resample whole projects.
 
-All text results below are single-seed test metrics. C and F1 thresholds are selected on validation only. AP intervals use cluster-bootstrap resampling: whole projects for cross-project and whole function groups for within-project. Row-level intervals are optimistic and retained for comparison in `results/bootstrap_ci_comparison.csv`.
+| Cross-project seed | AP (project-cluster 95% CI) | ROC-AUC | Test precision | Test recall |
+|---:|---:|---:|---:|---:|
+| 42 | 0.108 (0.076–0.137) | 0.710 | 0.136 | 0.356 |
+| 7 | 0.113 (0.087–0.142) | 0.708 | 0.130 | 0.366 |
+| 21 | 0.113 (0.082–0.140) | 0.715 | 0.122 | 0.366 |
 
-| Split | Model | Variant | AP (cluster 95% CI) | Precision at 30% recall | F1 |
-|---|---|---|---:|---:|---:|
-| Within | Length | chars/lines | 0.114 (0.102–0.131) | 0.132 | 0.179 |
-| Within | TF-IDF + logistic regression | Raw tokens | 0.356 (0.317–0.400) | 0.497 | 0.394 |
-| Within | TF-IDF + logistic regression | API-preserving mask | 0.147 (0.127–0.168) | 0.173 | 0.220 |
-| Within | TF-IDF + logistic regression | Fully masked | 0.143 (0.125–0.164) | 0.168 | 0.221 |
-| Cross | Length | chars/lines | 0.117 (0.089–0.143) | 0.144 | 0.201 |
-| Cross | TF-IDF + logistic regression | Raw tokens | 0.105 (0.084–0.129) | 0.132 | 0.186 |
-| Cross | TF-IDF + logistic regression | API-preserving mask | 0.122 (0.094–0.157) | 0.160 | 0.204 |
-| Cross | TF-IDF + logistic regression | Fully masked | 0.124 (0.097–0.158) | 0.161 | 0.209 |
+Mean cross-project AP is 0.111 (sample SD 0.003 across three seeds). This is a preliminary node-type-only result and is not a CodeBERT comparison.
 
-## Preliminary graph-model results: node-type-only R-GCN
+The clean within-project seed-42 run has N=16,631, 776 positives, AP 0.130 (function-group 95% CI 0.109–0.159), and ROC-AUC 0.727. Its split is not directly paired with the cross-project cohort.
 
-Seed-42 R-GCN runs use one-hot Joern node types and AST, CFG, reaching-definition, and control-dependence edges. They contain no code-text embeddings. The within run selected hyperparameters on its own validation set (five Optuna trials); the cross run selected on cross-project validation (one completed trial). Thresholds were selected on each setting's validation data. Test metrics use cluster-bootstrap confidence intervals over projects for cross-project and function groups for within-project.
+## Relation ablations
 
-| Split | Test N | Positives | AP (cluster 95% CI) | ROC-AUC | F1 | Threshold | Best validation AP (epoch) |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Within project | 16,631 | 776 | 0.130 (0.109–0.159) | 0.727 | 0.202 | 0.769 | 0.134 (14) |
-| Cross project | 20,957 | 917 | 0.108 (0.076–0.137) | 0.710 | 0.196 | 0.799 | 0.122 (9) |
+One seed (42), same cross-project split and baseline hyperparameters, with each edge relation removed in turn. Intervals overlap; this single-seed study does not establish that one relation is better.
 
-These are uncalibrated, single-seed estimates; they are not CodeBERT results or a claim of superiority over text baselines. A split-overlap audit found 833 within-test UIDs also appeared in cross-validation. The first within run used cross-selected hyperparameters and is retained as an exploratory artifact only; the reported within result is a fresh fit after five-trial within-validation tuning. The graph test cohorts contain only successful Joern parses and differ from the text-baseline cohort; the two split settings also share some test functions and should not be compared as paired estimates. Detailed metrics, score files, and per-project rows are under `results/gnn/joern_type_only/`.
+| Condition | Test AP (project-cluster 95% CI) | ROC-AUC | Precision | Recall | Best validation AP (epoch) |
+|---|---:|---:|---:|---:|---:|
+| All relations | 0.108 (0.076–0.137) | 0.710 | 0.136 | 0.356 | 0.122 (9) |
+| Without AST | 0.118 (0.081–0.158) | 0.708 | 0.128 | 0.351 | 0.127 (8) |
+| Without CFG | 0.109 (0.081–0.139) | 0.717 | 0.137 | 0.318 | 0.111 (1) |
+| Without reaching definition | 0.105 (0.077–0.133) | 0.719 | 0.136 | 0.287 | 0.114 (1) |
+| Without CDG | 0.113 (0.080–0.143) | 0.709 | 0.125 | 0.387 | 0.130 (17) |
 
-For raw tokens, validation selected C=10.0 within-project and C=0.03 cross-project. The earlier single-mask run in `results/baseline_results.csv` gives 0.356 to 0.141 AP within-project and 0.105 to 0.121 cross-project. Its cross-project row-level intervals overlap for raw text (0.097–0.117), the masked model (0.111–0.136), and length-only (0.106–0.131); those intervals are optimistic. The newer masked variants above use cluster intervals. These results are consistent with identifier sensitivity but do not prove that project-vocabulary memorization causes the cross-project collapse.
+Saved summary: results/gnn/joern_type_only/cross/edge_ablation_summary.csv. Each run selected its best epoch on validation and evaluated the same held-out test cohort.
 
-## Semgrep baseline
+## Precision target transfer
 
-Semgrep Community Edition 1.185.0 ran the frozen `p/c` snapshot with two upstream C rules and two derived C++ copies (effective ruleset SHA-256 `a936fb1c81084c67f6b0a988fd61f26824e3b3ffd7df6ec369b246300a985660`). It scanned all 18,211 within-project and 23,867 eligible cross-project test snippets and produced zero alerts. There were 68 and 167 parse warnings, respectively, and no timeouts or crashes. This four-rule baseline has narrow coverage. With zero recall, a matched-recall comparison to a nonzero-recall model is not possible.
+For each of three cross-project checkpoints, thresholds targeting 50% and 60% precision were chosen using validation only. On held-out projects, test precision ranged from 0.000 to 0.179 and recall from 0.000 to 0.008. A high validation precision threshold did not transfer to new projects and produced almost no test coverage. The current model does not meet a 50–60% test precision goal.
 
-## Cppcheck baseline
+Saved per-seed values: results/precision_operating_points/cross_precision_operating_points.csv. The Research page displays validation and held-out values side by side.
 
-Cppcheck 2.22.0 scanned the same eligible test rows, one snippet per process, with a two-second per-file timeout. The fixed operating point flags any warning- or error-severity finding; syntax-error diagnostics have error severity and therefore count as flags as well as parse failures. Timed-out and crashed files would be unflagged; there were none. Results are in `results/cppcheck/full/metrics.csv` and `results/baselines_v2.csv`.
+## Local demo
 
-| Split | Test functions | AP (cluster 95% CI) | Flagged | Parse failures | Timeouts | Crashes | Precision | Recall | F1 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Within-project | 18,211 | 0.051 (0.047–0.055) | 1,113 | 359 | 0 | 0 | 0.0800 | 0.1034 | 0.0902 |
-| Cross-project | 23,867 | 0.051 (0.041–0.062) | 2,053 | 213 | 0 | 0 | 0.0828 | 0.1605 | 0.1093 |
+The cream-and-olive website provides Overview, Research, Graph explorer, and Analysis preview pages. The Research API reads saved baseline, GNN, and precision-transfer results. Local C/C++ analysis uses Joern and the type-only R-GCN checkpoint when those local artifacts are present. Output scores are uncalibrated research signals, not security verdicts.
 
-Precision is low at this fixed operating point, and parser diagnostics may contribute false alerts. Treat this as a narrow snippet-based static-analysis result, not a complete security audit.
+Start from the repo root with the Windows GPU environment:
+powershell
+$env:PYTHONPATH = (Resolve-Path .\src).Path
+.\.venv-gpu\Scripts\python.exe .\scripts\serve_web.py --host 127.0.0.1 --port 8000
 
-## Graph pipeline status
+## Remaining work
 
-The 60-function Joern pilot produced 57 graphs (95%); the three failures had no matching method. The full deterministic workset contained 117,673 functions. Joern produced 107,461 graphs (91.32%): 99,739 of 109,064 safe functions and 7,722 of 8,609 vulnerable functions. The independent audit accounted for every planned function and reported zero errors or batch errors. There were 1,682 truncated graphs. The complete checkpoint archive is `results/graphs_full_2026-11-16.tar.gz` (334,855,059 bytes), with a SHA-256 sidecar. Full extraction was performed locally on Windows using Joern 4.0.683 and Java 21.0.13.
-
-The type-only PyTorch Geometric shards and one trained cross-project R-GCN checkpoint now exist. PyTorch/CUDA and the RTX 4060 work. CodeBERT feature generation remains blocked because Windows App Control denies `regex._regex.cp313-win_amd64.pyd`; no policy was changed. The local API now extracts a source graph with Joern and returns a model score from the type-only checkpoint. Localization results have not been measured.
-
-## Next work
-
-1. Run the type-only within-project split, then cross-project additional seeds and edge-relation ablations; report confidence intervals without tuning on test data.
-2. Obtain an approved deployment/allowance for the blocked Transformers native extension, then build raw-token and identifier-masked CodeBERT shards.
-3. Evaluate text-plus-graph R-GCNs on identical successful-graph cohorts and compare with the TF-IDF baselines.
-4. Measure top-1/3/5 changed-line localization against a random-lines baseline, then replace this progress report with final results and limitations.
+- CodeBERT feature generation is blocked by Windows App Control denying the Transformers regex native extension. No security policy was changed.
+- Changed-line localization has not been implemented or measured.
+- More seeds and independently tuned ablations are needed before drawing conclusions about edge relations.
+- The GitHub clone excludes local data, Joern binaries, environments, checkpoints, and prediction tables; see LOCAL_ARTIFACTS.md. Ragini needs GitHub access to the private repository and local runtime artifacts for the source-analysis route.
