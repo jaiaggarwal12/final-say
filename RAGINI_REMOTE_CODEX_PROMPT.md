@@ -1,10 +1,11 @@
 # Ragini: Mac project handoff (paste into Codex)
 
-You are continuing the VulnGNN research project on Ragini's Mac. The authoritative new source repository should be the user's newly created **private GitHub repository**. The clone URL is not yet known; replace `https://github.com/jaiaggarwal12/final-say.git` with the URL the user provides. Do not use or push to `https://github.com/raginikalra21/gnn-vulnerability-detection.git` unless the user explicitly says that is the intended repository.
+You are continuing the VulnGNN research project on Ragini's Mac. The authoritative source is the user's private GitHub repository: `https://github.com/jaiaggarwal12/final-say.git`. Ragini must be signed in with a GitHub account that has access to this private repository. Do not use or push to `https://github.com/raginikalra21/gnn-vulnerability-detection.git` unless the user explicitly says that is the intended repository.
 
 ## Goal
 
-Bring the Mac checkout up to date with the Windows work, preserve any Mac-only source changes and local research data, get the website and inference demo running, then report exactly what works and what remains.
+The repository may not be immediately cloneable unless Ragini has access to the private GitHub repo. If access is denied, stop at the authentication step and report it clearly.
+Bring the Mac checkout up to date with the Windows work, preserve Mac-only source changes and local research data, and get the fastest working demo running. Start with the website and precomputed research pages. For live source analysis, reuse Ragini's existing Joern install, feature metadata, and compatible model checkpoint if present. Do not begin a full dataset rebuild or model retraining before making the existing demo work.
 
 ## Rules for preserving Ragini's Mac work
 
@@ -12,7 +13,7 @@ Bring the Mac checkout up to date with the Windows work, preserve any Mac-only s
 2. Do not overwrite, reset, clean, delete, or reinitialize Ragini's existing checkout. Do not run `git reset --hard`, `git clean`, or destructive `rsync --delete`.
 3. Clone the private repo into a new sibling folder first. Authenticate with the Mac user's existing Git credential helper; never ask them to paste a password/token into chat.
 4. Compare the cloned repository with the old Mac checkout. Preserve uncommitted changes and any Mac-only commits by saving a patch/branch or copying only after reviewing the diff. Keep the original checkout intact as a backup.
-5. Preserve local data and ignored artifacts. Do not upload datasets, virtual environments, private keys, `.env` files, cached downloads, or model checkpoints unless they are explicitly tracked and the user specifically approves. Check `.gitignore`, `git status --ignored`, and `git ls-files` before copying.
+5. Preserve local data and ignored artifacts. Do not upload datasets, virtual environments, private keys, `.env` files, or cached downloads. The GitHub clone omits the dataset, Joern installation, and trained checkpoints. Reuse Mac copies when available. If a checkpoint, Joern, or feature metadata is missing, launch whatever parts work and explain precisely why live inference is unavailable. Do not begin a large download or full retraining before telling the user.
 6. Never claim the model is a production vulnerability detector. This is a research prototype; scores are ranking signals and are not calibrated findings.
 
 ## Set up the clean clone
