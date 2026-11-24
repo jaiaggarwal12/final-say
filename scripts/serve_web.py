@@ -287,6 +287,41 @@ def demo_graphs() -> dict[str, dict]:
     return found
 
 
+def static_rule_findings(code: str) -> list[dict]:
+    """Report review-worthy C/C++ API patterns; these are not proof of bugs."""
+    cleaned = re.sub(
+        r"/\*[\s\S]*?\*/|//[^\r\n]*",
+        lambda match: re.sub(r"[^\r\n]", " ", match.group(0)),
+        code,
+    )
+    rules = [
+        ("CWE-242", "gets has no destination-size argument", r"\bgets\s*\(", "high"),
+        ("CWE-120", "Unbounded copy/format API; verify destination capacity and input length", r"\b(?:strcpy|strcat|sprintf|vsprintf)\s*\(", "review"),
+        ("CWE-120", "scanf %s conversion has no visible field width; bound the input", r"\b(?:scanf|fscanf|sscanf)\s*\([^;\n]*%s", "review"),
+        ("CWE-78", "Command execution sink; verify arguments cannot include untrusted input", r"\b(?:system|popen)\s*\(", "review"),
+    ]
+    source_lines = code.splitlines()
+    findings = []
+    seen = set()
+    for cwe, message, pattern, severity in rules:
+        for match in re.finditer(pattern, cleaned):
+            line = cleaned.count("\n", 0, match.start()) + 1
+            key = (cwe, line)
+            if key in seen:
+                continue
+            seen.add(key)
+            evidence = source_lines[line - 1].strip() if 0 < line <= len(source_lines) else ""
+            findings.append({
+                "cwe": cwe,
+                "line": line,
+                "severity": severity,
+                "title": message,
+                "evidence": evidence[:240],
+                "kind": "pattern match; manual review required",
+            })
+    return findings
+
+
 class Handler(SimpleHTTPRequestHandler):
     server_version = "VulnGNNResearch/1.0"
 
@@ -319,7 +354,8 @@ class Handler(SimpleHTTPRequestHandler):
                          feature_root_for_checkpoint(checkpoint).joinpath("metadata.json").is_file())
             self.send_json({
                 "available": available,
-                "status": "ready" if available else "pending",
+                "static_analysis_available": True,
+                "status": "ready" if available else "static-only",
                 "checkpoint_available": bool(checkpoints),
                 "checkpoints": checkpoints,
                 "active_checkpoint": (str(checkpoint.relative_to(ROOT)).replace("\\", "/")
@@ -432,25 +468,29 @@ class Handler(SimpleHTTPRequestHandler):
             if extension not in {".c", ".h", ".cc", ".cpp", ".cxx", ".hpp"}:
                 self.send_json({"error": "Use a supported C/C++ filename extension."}, 400)
                 return
+            started = time.perf_counter()
+            result = {
+                "static_findings": static_rule_findings(code),
+                "model": None,
+                "graph": None,
+                "graph_note": None,
+            }
             predictor = graph_predictor()
             if predictor is None:
-                self.send_json({"error": "No compatible trained R-GCN checkpoint is available.",
-                                "status": "pending"}, 503)
-                return
-            started = time.perf_counter()
-            try:
-                graph = graph_from_source(code, extension)
-                result = predictor.predict(graph)
-            except ValueError as error:
-                self.send_json({"error": str(error)}, 422)
-                return
-            except subprocess.TimeoutExpired:
-                self.send_json({"error": "Joern parsing timed out; try a smaller single-function file."}, 504)
-                return
-            except (OSError, subprocess.CalledProcessError, RuntimeError) as error:
-                self.send_json({"error": f"Local graph extraction or inference failed: {error}"}, 500)
-                return
-            result["method"] = graph.get("method", "")
+                result["graph_note"] = "The experimental GNN checkpoint is unavailable; pattern checks still ran."
+            else:
+                try:
+                    graph = graph_from_source(code, extension)
+                    model_result = predictor.predict(graph)
+                    model_result["method"] = graph.get("method", "")
+                    result["model"] = model_result
+                    result["graph"] = {"nodes": model_result.get("nodes", 0), "edges": model_result.get("edges", 0)}
+                except ValueError as error:
+                    result["graph_note"] = str(error)
+                except subprocess.TimeoutExpired:
+                    result["graph_note"] = "Joern parsing timed out; pattern checks still ran. Try a smaller single-function file."
+                except (OSError, subprocess.CalledProcessError, RuntimeError, KeyError) as error:
+                    result["graph_note"] = f"Graph inference unavailable: {error}"
             result["elapsed_seconds"] = round(time.perf_counter() - started, 3)
             self.send_json({"result": result})
             return
