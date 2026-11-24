@@ -174,7 +174,7 @@ To run the local website and C/C++ inference API, use the same `.venv-gpu` envir
 .\.venv-gpu\Scripts\python.exe .\scripts\serve_web.py --host 127.0.0.1 --port 8000
 ```
 
-Analysis uploads are sent only to this localhost server. The current model score is uncalibrated and is a research output, not a security verdict. The API uses the bundled Joern CLI and selects features from the active checkpoint: the checked-in runtime currently has the node-type-only model; CodeBERT inference activates only when matching feature metadata and a trained CodeBERT checkpoint are present.
+Analysis uploads are sent only to this localhost server. The current model score is uncalibrated and is a research output, not a security verdict. The API uses the bundled Joern CLI and selects features from the active checkpoint: the checked-in runtime currently has the node-type-only model; CodeBERT inference activates only when matching feature metadata and a trained CodeBERT checkpoint are present. The upload review also runs the built-in risky-pattern checks and, when available, Cppcheck 2.22; each result is a diagnostic to verify, not a confirmed vulnerability. On Windows, install Cppcheck from [the official download page](https://cppcheck.sourceforge.io/) and set `$env:VULNGNN_CPPCHECK` to the full path of `cppcheck.exe` if it is not on `PATH`. The local demo copy under `tools/cppcheck/` is intentionally ignored by Git, so a fresh clone needs its own Cppcheck installation.
 
 Reproduce the complete Phase 2A baseline suite (frozen local Semgrep rules, resumable scans, validation-tuned text grid, cluster intervals, tables and figures):
 ```bash

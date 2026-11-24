@@ -83,7 +83,7 @@ Line mapping coverage was 100% for these 917 graphs. Results are preliminary; th
 
 ## Local demo
 
-The cream-and-olive website provides Overview, Research, Graph explorer, and Analysis preview pages. The Research API reads saved baseline, GNN, matched-cohort, precision-transfer, and localization results. Local C/C++ analysis uses Joern and the type-only R-GCN checkpoint when those local artifacts are present. Output scores are uncalibrated research signals, not security verdicts.
+The cream-and-olive website provides Overview, Research, Graph explorer, and Analysis preview pages. The Research API reads saved baseline, GNN, matched-cohort, precision-transfer, and localization results. Local C/C++ analysis uses Joern and the type-only R-GCN checkpoint when those local artifacts are present. Output scores are uncalibrated research signals, not security verdicts. Uploaded files also receive built-in risky-pattern checks and Cppcheck diagnostics when Cppcheck 2.22 is available; these are review evidence rather than confirmed vulnerabilities. The demo runtime has Cppcheck under ignored `tools/cppcheck/`; GitHub clones do not include that executable.
 
 Start from the repo root with the Windows GPU environment:
 powershell

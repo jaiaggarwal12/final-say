@@ -14,6 +14,7 @@ import shutil
 import sys
 import tempfile
 import time
+import xml.etree.ElementTree as ET
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -322,6 +323,73 @@ def static_rule_findings(code: str) -> list[dict]:
     return findings
 
 
+def cppcheck_executable() -> str | None:
+    """Find an optional Cppcheck CLI without requiring a system install."""
+    configured = os.environ.get("VULNGNN_CPPCHECK")
+    if configured and Path(configured).is_file():
+        return str(Path(configured))
+    on_path = shutil.which("cppcheck")
+    if on_path:
+        return on_path
+    names = ("cppcheck.exe", "cppcheck") if os.name == "nt" else ("cppcheck", "cppcheck.exe")
+    for name in names:
+        candidate = ROOT / "tools" / "cppcheck" / name
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def cppcheck_scan(code: str, filename: str) -> dict:
+    """Run the real Cppcheck CLI on one temporary source file and parse XML."""
+    executable = cppcheck_executable()
+    if executable is None:
+        return {"status": "not_installed", "version": None, "findings": []}
+    extension = Path(filename).suffix.lower()
+    language = "c++" if extension in {".cc", ".cpp", ".cxx", ".hpp"} else "c"
+    temp_root = ROOT / "tmp"
+    temp_root.mkdir(parents=True, exist_ok=True)
+    try:
+        with tempfile.TemporaryDirectory(prefix="vulngnn-cppcheck-", dir=temp_root) as temp:
+            source = Path(temp) / ("uploaded" + extension)
+            source.write_text(code, encoding="utf-8")
+            env = os.environ.copy()
+            env["PATH"] = str(Path(executable).parent) + os.pathsep + env.get("PATH", "")
+            completed = subprocess.run(
+                [executable, "--quiet", "--enable=warning,performance,portability",
+                 "--xml", "--xml-version=2", f"--language={language}", str(source)],
+                cwd=temp, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                timeout=12, env=env,
+            )
+            output = completed.stderr + "\n" + completed.stdout
+            xml_start = output.find("<?xml")
+            if xml_start < 0:
+                return {"status": "error", "version": None, "findings": [],
+                        "message": output.strip()[-500:] or "Cppcheck returned no XML output."}
+            report = ET.fromstring(output[xml_start:])
+            version_node = report.find("cppcheck")
+            findings = []
+            for item in report.findall("./errors/error"):
+                location = item.find("location")
+                raw_cwe = item.get("cwe", "")
+                findings.append({
+                    "rule_id": item.get("id", "cppcheck"),
+                    "cwe": f"CWE-{raw_cwe}" if raw_cwe.isdigit() else raw_cwe,
+                    "severity": item.get("severity", "information"),
+                    "line": int(location.get("line", "0")) if location is not None else 0,
+                    "column": int(location.get("column", "0")) if location is not None else 0,
+                    "message": item.get("verbose") or item.get("msg", "Cppcheck diagnostic"),
+                    "kind": "Cppcheck static-analysis diagnostic; verify context",
+                })
+            return {"status": "ready", "version": version_node.get("version") if version_node is not None else None,
+                    "findings": findings}
+    except subprocess.TimeoutExpired:
+        return {"status": "timed_out", "version": None, "findings": [],
+                "message": "Cppcheck exceeded its 12-second limit; other checks still ran."}
+    except (OSError, ET.ParseError) as error:
+        return {"status": "error", "version": None, "findings": [],
+                "message": f"Cppcheck could not complete: {error}"}
+
+
 class Handler(SimpleHTTPRequestHandler):
     server_version = "VulnGNNResearch/1.0"
 
@@ -355,6 +423,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json({
                 "available": available,
                 "static_analysis_available": True,
+                "cppcheck_available": cppcheck_executable() is not None,
                 "status": "ready" if available else "static-only",
                 "checkpoint_available": bool(checkpoints),
                 "checkpoints": checkpoints,
@@ -471,6 +540,7 @@ class Handler(SimpleHTTPRequestHandler):
             started = time.perf_counter()
             result = {
                 "static_findings": static_rule_findings(code),
+                "cppcheck": cppcheck_scan(code, filename),
                 "model": None,
                 "graph": None,
                 "graph_note": None,
