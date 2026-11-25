@@ -1,7 +1,0 @@
-{
-  "sampling_interval_seconds": 0.25,
-  "samples": 162,
-  "peak_process_tree_rss_kib": 1432752,
-  "peak_process_tree_rss_mib": 1399.171875,
-  "method": "sampled ps RSS sum of runner and descendants"
-}

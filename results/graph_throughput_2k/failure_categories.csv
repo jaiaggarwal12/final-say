@@ -1,5 +1,0 @@
-status,class,extension,failure_reason,functions
-no_method,Safe,C,no non-external METHOD with matching source uid in FILENAME,97
-no_method,Safe,C++,no non-external METHOD with matching source uid in FILENAME,70
-no_method,Vulnerable,C,no non-external METHOD with matching source uid in FILENAME,2
-no_method,Vulnerable,C++,no non-external METHOD with matching source uid in FILENAME,8
