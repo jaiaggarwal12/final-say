@@ -1,6 +1,6 @@
 # Local artifacts excluded from Git
 
-This repository tracks source, configuration, documentation, the progress report, and compact result summaries. Large or machine-specific artifacts remain local:
+This repository tracks source, configuration, project documentation, the course report and presentation, and compact result summaries. Large or machine-specific artifacts remain local:
 
 - `data/` (about 17 GiB on the Windows machine): dataset and extracted graph data. See the dataset acquisition and graph extraction instructions in `README.md` and `HANDOFF.md`.
 - `.venv/`, `.venv-gpu/`, `tools/`, and Joern installation files: environment and tool installations; recreate from the documented dependency files and install instructions.
