@@ -5,7 +5,7 @@ import argparse
 import tarfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _source_filter(info: tarfile.TarInfo) -> tarfile.TarInfo | None:
@@ -24,16 +24,16 @@ def main() -> None:
     parser.add_argument("--source-dir", type=Path, default=ROOT / "src",
                         help="project Python source needed by the graph runner")
     parser.add_argument("--pipeline-script", type=Path,
-                        default=ROOT / "scripts/run_graph_pipeline.py",
+                        default=ROOT / "src/scripts/run_graph_pipeline.py",
                         help="graph pipeline entry point to include")
     parser.add_argument("--checkpoint-script", type=Path,
-                        default=ROOT / "scripts/restore_graph_checkpoint.py",
+                        default=ROOT / "src/scripts/restore_graph_checkpoint.py",
                         help="checkpoint verification and restore helper")
     parser.add_argument("--workset-dir", type=Path, default=None,
                         help="optional compact workset directory containing manifest.csv, "
                              "coverage_by_project.csv, and workset_metadata.json")
     parser.add_argument("--graph-requirements", type=Path,
-                        default=ROOT / "requirements-graph.txt",
+                        default=ROOT / "docs/requirements/requirements-graph.txt",
                         help="pinned Python dependencies for CPU graph extraction")
     parser.add_argument("--output", type=Path,
                         default=Path("/private/tmp/gnn-vulnerability-kaggle-inputs.tar.gz"))

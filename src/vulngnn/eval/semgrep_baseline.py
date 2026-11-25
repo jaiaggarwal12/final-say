@@ -23,7 +23,7 @@ from vulngnn.eval.metrics import prf_at
 
 ROOT = Path(__file__).resolve().parents[3]
 DATA = ROOT / "data/processed/bigvul_clean.parquet"
-RULES = ROOT / "configs/semgrep_c.yml"
+RULES = ROOT / "src/vulngnn/configs/semgrep_c.yml"
 OUT = ROOT / "results/semgrep"
 WORK = ROOT / "data/semgrep"
 RAW = WORK / "raw"

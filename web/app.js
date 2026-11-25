@@ -162,7 +162,7 @@ async function loadResearch(){
 }
 function drawMatched(){
   const body=document.querySelector('#matched-result');if(!body)return;
-  if(!matchedRows.length){body.innerHTML='<p class="page-copy">Run scripts/evaluate_matched_baseline_comparison.py to generate this paired same-cohort comparison.</p>';return;}
+  if(!matchedRows.length){body.innerHTML='<p class="page-copy">Run src/scripts/evaluate_matched_baseline_comparison.py to generate this paired same-cohort comparison.</p>';return;}
   body.innerHTML=`<table class="results-table"><thead><tr><th>Model</th><th>Shared N</th><th>Projects</th><th>GNN AP</th><th>Text AP</th><th>GNN − text AP (project 95% CI)</th><th>GNN ROC-AUC</th><th>Text ROC-AUC</th></tr></thead><tbody>${matchedRows.map(r=>`<tr><td>${esc(r.baseline_model)}</td><td>${Number(r.n_shared_test_functions).toLocaleString()}</td><td>${Number(r.n_test_projects)}</td><td>${fmt(r.gnn_ap,3)}</td><td>${fmt(r.baseline_ap,3)}</td><td class="score">${fmt(r.gnn_minus_baseline_ap,3)} (${fmt(r.delta_project_bootstrap_95_low,3)}–${fmt(r.delta_project_bootstrap_95_high,3)})</td><td>${fmt(r.gnn_roc_auc,3)}</td><td>${fmt(r.baseline_roc_auc,3)}</td></tr>`).join('')}</tbody></table><p class="research-footnote">Paired by normalized function hash after the same 20,957 graph-covered held-out functions were scored by both models; labels and project IDs are validated. Project-cluster bootstrap resamples whole projects. Text scores come from the legacy v1 TF-IDF artifact, so compare these paired numbers only within this table; the main v2 baseline table uses a later tuned evaluation.</p>`;
 }
 function drawGNN(){

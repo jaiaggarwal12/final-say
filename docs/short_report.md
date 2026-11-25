@@ -47,7 +47,7 @@ To compare the graph model fairly with existing text scores, we joined the seed-
 | TF-IDF logistic regression | 0.108 | 0.105 | +0.002 (−0.010–0.015) | 0.710 | 0.738 |
 | Identifier-masked TF-IDF | 0.108 | 0.120 | −0.013 (−0.029–0.003) | 0.710 | 0.741 |
 
-The AP differences are small and each interval includes zero; the saved result does not establish a graph-model advantage. ROC-AUC is higher for the legacy text baselines. These text scores come from the older baseline artifact, not the later validation-tuned v2 suite in the main baseline table. Reproduce with `python scripts/evaluate_matched_baseline_comparison.py`; output: `results/gnn/joern_type_only/cross/matched_baseline_comparison_seed42.csv`. The Research page displays this same-cohort comparison separately from the full-cohort v2 baseline table.
+The AP differences are small and each interval includes zero; the saved result does not establish a graph-model advantage. ROC-AUC is higher for the legacy text baselines. These text scores come from the older baseline artifact, not the later validation-tuned v2 suite in the main baseline table. Reproduce with `python src/scripts/evaluate_matched_baseline_comparison.py`; output: `results/gnn/joern_type_only/cross/matched_baseline_comparison_seed42.csv`. The Research page displays this same-cohort comparison separately from the full-cohort v2 baseline table.
 
 ## Relation ablations
 
@@ -79,7 +79,7 @@ For the 917 vulnerable functions in the held-out cross-project test, absolute gr
 | Top 3 | 0.344 | 0.294–0.391 | 0.234 |
 | Top 5 | 0.435 | 0.389–0.506 | 0.321 |
 
-Line mapping coverage was 100% for these 917 graphs. Results are preliminary; they show overlap with fix edits, not verified localization of the vulnerability itself. Reproduction: scripts/evaluate_line_localization.py. Results: results/line_localization/cross_seed42_line_localization.json and .csv.
+Line mapping coverage was 100% for these 917 graphs. Results are preliminary; they show overlap with fix edits, not verified localization of the vulnerability itself. Reproduction: src/scripts/evaluate_line_localization.py. Results: results/line_localization/cross_seed42_line_localization.json and .csv.
 
 ## Local demo
 

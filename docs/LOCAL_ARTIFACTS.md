@@ -2,7 +2,7 @@
 
 This repository tracks source, configuration, project documentation, the course report and presentation, and compact result summaries. Large or machine-specific artifacts remain local:
 
-- `data/` (about 17 GiB on the Windows machine): dataset and extracted graph data. See the dataset acquisition and graph extraction instructions in `README.md` and `HANDOFF.md`.
+- `data/` (about 17 GiB on the Windows machine): dataset and extracted graph data. See the dataset acquisition and graph extraction instructions in `../README.md` and `HANDOFF.md`.
 - `.venv/`, `.venv-gpu/`, `tools/`, and Joern installation files: environment and tool installations; recreate from the documented dependency files and install instructions.
 - `results/graphs_full_2026-11-16.tar.gz` (about 335 MB): generated graph archive. Its adjacent SHA-256 file is retained locally; rebuild using the graph pipeline if needed.
 - `results/gnn/**/model_*.pt`: trained checkpoints, about 5.6 MiB each. Regenerate by running the documented training commands.

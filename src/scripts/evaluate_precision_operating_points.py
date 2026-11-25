@@ -18,7 +18,7 @@ from vulngnn.graphs.build_pyg_dataset import GraphShardDataset
 from vulngnn.models import RGCNClassifier
 from vulngnn.train.train_gnn import loader, predict
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def choose_threshold(y, scores, target):

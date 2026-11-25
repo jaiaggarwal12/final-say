@@ -20,7 +20,7 @@ import torch
 from vulngnn.graphs.build_pyg_dataset import GraphShardDataset
 from vulngnn.models import RGCNClassifier
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 FEATURES = ROOT / "data/graph_dataset/joern_type_only"
 WORKSET_GRAPHS = ROOT / "data/graph_workset/graphs"
 CHECKPOINT = ROOT / "results/gnn/joern_type_only/cross/all_edges/model_seed42.pt"

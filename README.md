@@ -2,7 +2,7 @@
 
 > **Status (24 November 2026):** Full Joern extraction and audit are complete locally (117,673 planned; 107,461 graphs; zero audit errors). The node-type-only R-GCN has three cross-project seeds (mean AP 0.111), three within-project seeds on one fixed split (mean AP 0.156, sample SD 0.023), and four single-seed relation ablations. A same-function matched evaluation compares the seed-42 graph model with legacy text baselines across 20,957 held-out functions; AP differences are small and project-bootstrap intervals include zero, so no graph advantage is established. A validation-selected 50–60% precision threshold failed to transfer to held-out projects (test precision 0.000–0.179). The local UI reports these results and supports local source-to-graph inference when the ignored runtime artifacts are present. CodeBERT and Transformers now import successfully, and a 12-graph CUDA feature-generation smoke run passed; full raw/masked feature extraction and CodeBERT model training remain to do. A preliminary patch-overlap localization proxy measures top-1/3/5 hits at 0.189/0.344/0.435 versus exact random expectations 0.108/0.234/0.321; this is not ground-truth line localization. See docs/short_report.md and docs/APP_CONTROL_RUNTIME.md.
 
-See the [course project report](deliverables/VulnGNN_Course_Project_Report.docx), [presentation](deliverables/VulnGNN_Course_Project_Presentation.pptx), [research summary](docs/short_report.md), and [local artifact manifest](LOCAL_ARTIFACTS.md). The [current project handoff](HANDOFF.md) documents the Windows run environment.
+See the [course project report](docs/deliverables/VulnGNN_Course_Project_Report.docx), [presentation](docs/deliverables/VulnGNN_Course_Project_Presentation.pptx), [research summary](docs/short_report.md), and [local artifact manifest](docs/LOCAL_ARTIFACTS.md). The [current project handoff](docs/HANDOFF.md) documents the Windows run environment.
 
 ## Research question and hypothesis
 **Research question:** Does code-property-graph structure improve vulnerability detection on projects the model has never seen, especially after identifiers are abstracted?
@@ -104,7 +104,7 @@ A first test of the graph stage: 60 BigVul functions (30 vulnerable, 30 safe; 25
 - **Graph size:** about 83 nodes and 635 edges per function on average (about 82 syntax edges, 68 control-flow edges, 162 data-flow edges, 45 control-dependence edges, plus other edge types).
 - **Each graph maps back to its function:** every function is written as `f_<hash>.c` or `.cpp`; the graph JSON stores that ID with the label, project, commit and CVE.
 - **Note:** in BigVul a safe function carries the CVE of the commit it came from, so label 0 with a CVE ID is expected.
-- **Runner:** `bash scripts/run_pilot.sh` runs the pilot extraction and report.
+- **Runner:** `bash src/scripts/run_pilot.sh` runs the pilot extraction and report.
 
 Example: `chdlc_if_print` from tcpdump (CVE-2017-13687, label: vulnerable), 38 nodes.
 - Syntax: the function body block contains `length = h->len` and `caplen = h->caplen`.
@@ -143,7 +143,7 @@ Example: `chdlc_if_print` from tcpdump (CVE-2017-13687, label: vulnerable), 38 n
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python scripts/download_bigvul.py
+python src/scripts/download_bigvul.py
 cd data/raw && unzip -q MSR_data_cleaned.zip && cd ../..
 python src/vulngnn/data/prepare_bigvul.py
 python src/vulngnn/data/make_splits.py
@@ -178,15 +178,15 @@ Analysis uploads are sent only to this localhost server. The current model score
 
 Reproduce the complete Phase 2A baseline suite (frozen local Semgrep rules, resumable scans, validation-tuned text grid, cluster intervals, tables and figures):
 ```bash
-./scripts/run_baselines.sh
+./src/scripts/run_baselines.sh
 ```
 
 Baseline dependencies and complete reproduction (Semgrep rules are local; Cppcheck must be installed separately):
 ```bash
 source .venv/bin/activate
-python -m pip install -r requirements-semgrep.txt
+python -m pip install -r docs/requirements/requirements-semgrep.txt
 brew install cppcheck
-./scripts/run_baselines.sh
+./src/scripts/run_baselines.sh
 ```
 The reproducible Phase 2A runner uses checked-in local Semgrep rules, resumable Semgrep and per-function Cppcheck results, the validation-tuned text grid, and writes tables and figures under `results/`. It excludes `near_dup_cross` rows from cross-project evaluation. Treat both static analyzers as narrow operating-point baselines, not complete C/C++ security audits.
 
@@ -199,14 +199,14 @@ The planner selects vulnerable functions, eligible validation/test rows (excludi
 
 The processed data and Joern installation are excluded from Git. Package those inputs together with the reviewed graph-pipeline and checkpoint tools for a private Kaggle Dataset upload with:
 ```bash
-.venv/bin/python scripts/package_kaggle_inputs.py \
+.venv/bin/python src/scripts/package_kaggle_inputs.py \
   --joern-dir /private/tmp/joern-cli-linux-x86_64-v4.0.665/joern-cli \
   --workset-dir results/graph_throughput_2k/full_workset_batch2000 \
   --output /private/tmp/vulngnn-phase2b-kaggle-v4.tar.gz
 ls -lh /private/tmp/vulngnn-phase2b-kaggle-v4.tar.gz
 shasum -a 256 /private/tmp/vulngnn-phase2b-kaggle-v4.tar.gz
 ```
-The earlier `/private/tmp/vulngnn-phase2b-inputs-batch2000.tar.gz` archive bundled macOS Joern binaries and must not be used on Kaggle. The Linux x86_64 Joern 4.0.665 package used in the smoke run was 1,913,587,851 bytes (SHA-256 `16427a07f97b021fdb48897b527029648b9a1c50ee5d3c1714c1526e3a942564`); it contains the processed parquet, extraction source, requirements, and 117,673-row manifest. The latest verified Kaggle CPU smoke (notebook version 4, 2026-11-16) ran only batch `00000` (2,000 functions) on Linux x86_64 with 4 CPUs, Python 3.13.18, pandas 2.3.3, PyArrow 23.0.1, OpenJDK 21.0.12, and Joern 4.0.665. It produced 1,830 graphs (1,797 `ok`, 33 `ok_truncated`), 170 `no_method`, and zero `batch_error`; safe coverage was 1,686/1,842 (91.3%) and vulnerable coverage was 144/158 (91.1%). Measured stage times were parse 25.829 s, export 7.216 s, conversion 12.481 s, and batch 46.629 s. Process-tree peak RSS sampled every 250 ms was 1,217.13 MiB. A seeded 20-graph integrity sample passed; resume validated and skipped the completed batch, preserving graph JSONL SHA-256 `53524c780bbb89df3db8eeb316155b61a3692bce5f2d26f344d27cc7cd7f974d`. The checkpoint archive SHA-256 is `eb0dfe380f7340b46da8f17cf8f4f75c23b4f20b242ab7518a1c97cfc3d04039`. The archive and `.sha256` sidecar were downloaded to `~/Downloads`, verified and restored into a clean temporary workset; Kaggle session was then stopped and the local archive was reverified. This verifies one-batch compatibility and checkpoint recovery only; it is not full-workset extraction evidence. The [checked-in Kaggle notebook](notebooks/phase2b_kaggle_graph_extraction.ipynb) defaults to one batch and documents the checkpoint restore path and chunk procedure.
+The earlier `/private/tmp/vulngnn-phase2b-inputs-batch2000.tar.gz` archive bundled macOS Joern binaries and must not be used on Kaggle. The Linux x86_64 Joern 4.0.665 package used in the smoke run was 1,913,587,851 bytes (SHA-256 `16427a07f97b021fdb48897b527029648b9a1c50ee5d3c1714c1526e3a942564`); it contains the processed parquet, extraction source, requirements, and 117,673-row manifest. The latest verified Kaggle CPU smoke (notebook version 4, 2026-11-16) ran only batch `00000` (2,000 functions) on Linux x86_64 with 4 CPUs, Python 3.13.18, pandas 2.3.3, PyArrow 23.0.1, OpenJDK 21.0.12, and Joern 4.0.665. It produced 1,830 graphs (1,797 `ok`, 33 `ok_truncated`), 170 `no_method`, and zero `batch_error`; safe coverage was 1,686/1,842 (91.3%) and vulnerable coverage was 144/158 (91.1%). Measured stage times were parse 25.829 s, export 7.216 s, conversion 12.481 s, and batch 46.629 s. Process-tree peak RSS sampled every 250 ms was 1,217.13 MiB. A seeded 20-graph integrity sample passed; resume validated and skipped the completed batch, preserving graph JSONL SHA-256 `53524c780bbb89df3db8eeb316155b61a3692bce5f2d26f344d27cc7cd7f974d`. The checkpoint archive SHA-256 is `eb0dfe380f7340b46da8f17cf8f4f75c23b4f20b242ab7518a1c97cfc3d04039`. The archive and `.sha256` sidecar were downloaded to `~/Downloads`, verified and restored into a clean temporary workset; Kaggle session was then stopped and the local archive was reverified. This verifies one-batch compatibility and checkpoint recovery only; it is not full-workset extraction evidence. The [checked-in Kaggle notebook](docs/notebooks/phase2b_kaggle_graph_extraction.ipynb) defaults to one batch and documents the checkpoint restore path and chunk procedure.
 
 A refreshed upload bundle was built from the current worktree at `/private/tmp/vulngnn-phase2b-kaggle-v4.tar.gz`: 1,913,591,909 bytes, SHA-256 `c13c5587d2bd6249aa3481cdb4de868d50588bdc2ba8749dbecdc8ed22ff314f`. It includes `restore_graph_checkpoint.py`, the updated pipeline and the full workset manifest/metadata. This exact package was uploaded as a private Kaggle Dataset, checked against its SHA-256 inside Kaggle, and used in the notebook version 4 one-batch smoke. Rebuild it with the command above and repeat the hash check after any packaged input changes.
 
@@ -235,7 +235,7 @@ The planned PyG node-type vocabulary is built only from rows whose roles are `tr
 
 After Joern extraction, build the raw-identifier CodeBERT feature shards on Kaggle's GPU:
 ```bash
-pip install -r requirements-gnn.txt
+pip install -r docs/requirements/requirements-gnn.txt
 python -m pip show torch torch-geometric transformers
 PYTHONPATH=src python -m vulngnn.graphs.build_pyg_dataset --device cuda --batch-size 64
 PYTHONPATH=src python -m vulngnn.graphs.build_pyg_dataset --device cuda --batch-size 64 --mask-identifiers
@@ -272,7 +272,7 @@ The output contains per-function line rankings and hit indicators plus coverage 
 
 For the paired legacy v1 text baseline versus the seed-42 type-only GNN comparison on identical graph-covered test functions, regenerate the 1,000-replicate whole-project bootstrap table:
 ```bash
-python scripts/evaluate_matched_baseline_comparison.py
+python src/scripts/evaluate_matched_baseline_comparison.py
 ```
 It verifies normalized function IDs, labels, and project assignments before calculating metrics. The comparison is explicitly labeled legacy v1; the complete text-baseline table uses the later v2 validation-tuned scores.
 
@@ -292,7 +292,7 @@ curl -L "https://github.com/joernio/joern/releases/latest/download/joern-install
 chmod u+x joern-install.sh
 ./joern-install.sh --install-dir="$PWD/joern" --without-plugins
 cd ..
-bash scripts/run_pilot.sh
+bash src/scripts/run_pilot.sh
 ```
 
 ## Limitations

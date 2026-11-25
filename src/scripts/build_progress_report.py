@@ -12,8 +12,8 @@ from reportlab.lib.units import inch
 from reportlab.platypus import (PageBreak, Paragraph, SimpleDocTemplate, Spacer,
                                 Table, TableStyle, KeepTogether)
 
-ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "output/pdf/VulnGNN_Team_Progress_Report.pdf"
+ROOT = Path(__file__).resolve().parents[2]
+OUT = ROOT / "docs/archive/VulnGNN_Team_Progress_Report.pdf"
 GREEN = colors.HexColor("#65734d")
 DARK = colors.HexColor("#252722")
 MUTED = colors.HexColor("#6b7064")

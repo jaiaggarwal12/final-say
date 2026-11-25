@@ -24,7 +24,7 @@ from vulngnn.eval.metrics import prf_at
 
 ROOT = Path(__file__).resolve().parents[3]
 DATA = ROOT / "data/processed/bigvul_clean.parquet"
-RULES = ROOT / "configs/semgrep_c.yml"
+RULES = ROOT / "src/vulngnn/configs/semgrep_c.yml"
 OUT = ROOT / "results/semgrep_v2"
 SPLITS = {"within": "split_within", "cross": "split_cross"}
 CPP_HINT = re.compile(r"\w::\w|\bclass\s+\w|\btemplate\s*<|\bnamespace\b|\bnullptr\b")

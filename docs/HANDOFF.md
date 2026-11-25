@@ -21,9 +21,9 @@ Updated 24 November 2026. The source is pushed to the private repository https:/
 - Four cross-project seed-42 relation ablations are in results/gnn/joern_type_only/cross/without_* and summarized in edge_ablation_summary.csv. Their intervals overlap.
 - Precision target study: thresholds selected on validation for 50% and 60% precision did not transfer. Held-out precision was 0.000–0.179 with recall 0.000–0.008.
 - Held-out line-attribution proxy: top-1/3/5 changed-line hit rates 0.189/0.344/0.435 across all 917 vulnerable test functions; project-cluster intervals and exact random-line expectations are documented in docs/short_report.md. These fix-diff targets are a proxy, not validated vulnerability-line labels.
-- Matched-cohort comparison: GNN seed 42 and three legacy v1 text baselines scored on the same 20,957 held-out functions from 109 projects; label/project IDs were checked after joining. AP differences are small and project-bootstrap intervals include zero. Reproduce with scripts/evaluate_matched_baseline_comparison.py.
+- Matched-cohort comparison: GNN seed 42 and three legacy v1 text baselines scored on the same 20,957 held-out functions from 109 projects; label/project IDs were checked after joining. AP differences are small and project-bootstrap intervals include zero. Reproduce with src/scripts/evaluate_matched_baseline_comparison.py.
 - Local research UI and source-to-graph-to-model inference route are implemented.
-- Progress PDF: output/pdf/VulnGNN_Team_Progress_Report.pdf.
+- Progress PDF: docs/archive/VulnGNN_Team_Progress_Report.pdf.
 - Mac Codex prompt: RAGINI_REMOTE_CODEX_PROMPT.md.
 
 ## Run local demo

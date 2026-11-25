@@ -19,7 +19,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 WEB = ROOT / "web"
 BASELINES = ROOT / "results/baselines_v2.csv"
 PROJECTS = ROOT / "results/per_project_baselines_v2.csv"
